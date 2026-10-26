@@ -1,0 +1,611 @@
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Activity,
+  AlertCircle,
+  Boxes,
+  CheckCircle2,
+  ClipboardList,
+  LoaderCircle,
+  Minus,
+  Package,
+  Plus,
+  RefreshCw,
+  Search,
+  ShoppingCart,
+  Store,
+  Trash2,
+} from "lucide-react";
+import { supabase } from "./lib/supabase";
+import "./App.css";
+
+type Product = {
+  id: string;
+  name: string;
+  is_active: boolean;
+};
+
+type Variant = {
+  id: string;
+  product_id: string;
+  sku: string;
+  variant_name: string | null;
+  unit_price: number | string;
+  is_active: boolean;
+};
+
+type Balance = {
+  variant_id: string;
+  on_hand: number;
+  reserved: number;
+};
+
+type Order = {
+  id: string;
+  order_number: string;
+  status: string;
+  total_amount: number | string;
+  currency: string;
+  created_at: string;
+};
+
+type CatalogItem = {
+  variantId: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  variantName: string;
+  unitPrice: number;
+  onHand: number;
+  reserved: number;
+  available: number;
+};
+
+type CartLine = {
+  variantId: string;
+  quantity: number;
+};
+
+
+const money = (amount: number, currency = "VND") => {
+  const code = /^[A-Z]{3}$/.test(currency.trim())
+    ? currency.trim()
+    : "VND";
+
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: code,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
+const dateTime = (value: string) =>
+  new Intl.DateTimeFormat("vi-VN", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
+
+const statusLabel: Record<string, string> = {
+  draft: "Nháp",
+  confirmed: "Đã xác nhận",
+  cancelled: "Đã hủy",
+  completed: "Hoàn tất",
+  pending: "Chờ xử lý",
+  paid: "Đã thanh toán",
+};
+
+export default function App() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [variants, setVariants] = useState<Variant[]>([]);
+  const [balances, setBalances] = useState<Balance[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [cart, setCart] = useState<CartLine[]>([]);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const [productResult, variantResult, balanceResult, orderResult] =
+        await Promise.all([
+          supabase
+            .from("products")
+            .select("id,name,is_active")
+            .order("name"),
+          supabase
+            .from("product_variants")
+            .select("id,product_id,sku,variant_name,unit_price,is_active")
+            .order("sku"),
+          supabase
+            .from("inventory_balances")
+            .select("variant_id,on_hand,reserved"),
+          supabase
+            .from("sales_orders")
+            .select("id,order_number,status,total_amount,currency,created_at")
+            .order("created_at", { ascending: false })
+            .limit(50),
+        ]);
+
+      const firstError =
+        productResult.error ??
+        variantResult.error ??
+        balanceResult.error ??
+        orderResult.error;
+
+      if (firstError) throw firstError;
+
+      setProducts((productResult.data ?? []) as Product[]);
+      setVariants((variantResult.data ?? []) as Variant[]);
+      setBalances((balanceResult.data ?? []) as Balance[]);
+      setOrders((orderResult.data ?? []) as Order[]);
+      setLastUpdated(new Date());
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Không tải được dữ liệu từ Supabase.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  const catalog = useMemo<CatalogItem[]>(() => {
+    const productMap = new Map(products.map((p) => [p.id, p]));
+    const balanceMap = new Map<
+      string,
+      { onHand: number; reserved: number }
+    >();
+
+    for (const balance of balances) {
+      const current = balanceMap.get(balance.variant_id) ?? {
+        onHand: 0,
+        reserved: 0,
+      };
+      current.onHand += Number(balance.on_hand);
+      current.reserved += Number(balance.reserved);
+      balanceMap.set(balance.variant_id, current);
+    }
+
+    return variants
+      .filter((variant) => variant.is_active)
+      .flatMap((variant) => {
+        const product = productMap.get(variant.product_id);
+        if (!product || !product.is_active) return [];
+
+        const balance = balanceMap.get(variant.id) ?? {
+          onHand: 0,
+          reserved: 0,
+        };
+
+        return [
+          {
+            variantId: variant.id,
+            productId: product.id,
+            productName: product.name,
+            sku: variant.sku,
+            variantName: variant.variant_name ?? "Mặc định",
+            unitPrice: Number(variant.unit_price),
+            onHand: balance.onHand,
+            reserved: balance.reserved,
+            available: Math.max(
+              0,
+              balance.onHand - balance.reserved,
+            ),
+          },
+        ];
+      });
+  }, [products, variants, balances]);
+
+  const filteredCatalog = useMemo(() => {
+    const term = search.trim().toLocaleLowerCase("vi");
+    if (!term) return catalog;
+
+    return catalog.filter(
+      (item) =>
+        item.productName.toLocaleLowerCase("vi").includes(term) ||
+        item.sku.toLocaleLowerCase("vi").includes(term) ||
+        item.variantName.toLocaleLowerCase("vi").includes(term),
+    );
+  }, [catalog, search]);
+
+  const cartDetails = useMemo(
+    () =>
+      cart.flatMap((line) => {
+        const item = catalog.find(
+          (entry) => entry.variantId === line.variantId,
+        );
+        return item ? [{ ...item, quantity: line.quantity }] : [];
+      }),
+    [cart, catalog],
+  );
+
+  const cartQuantity = cart.reduce((sum, line) => sum + line.quantity, 0);
+  const cartTotal = cartDetails.reduce(
+    (sum, line) => sum + line.unitPrice * line.quantity,
+    0,
+  );
+  const activeProducts = products.filter((p) => p.is_active).length;
+  const lowStock = catalog.filter(
+    (item) => item.available <= 3,
+  ).length;
+
+  function addToCart(item: CatalogItem) {
+    if (item.available < 1) return;
+
+    setCart((current) => {
+      const existing = current.find(
+        (line) => line.variantId === item.variantId,
+      );
+
+      if (existing) {
+        if (existing.quantity >= item.available) return current;
+        return current.map((line) =>
+          line.variantId === item.variantId
+            ? { ...line, quantity: line.quantity + 1 }
+            : line,
+        );
+      }
+
+      return [...current, { variantId: item.variantId, quantity: 1 }];
+    });
+  }
+
+  function changeQuantity(variantId: string, delta: number) {
+    const item = catalog.find((entry) => entry.variantId === variantId);
+    if (!item) return;
+
+    setCart((current) =>
+      current.flatMap((line) => {
+        if (line.variantId !== variantId) return [line];
+
+        const nextQuantity = line.quantity + delta;
+        if (nextQuantity < 1) return [];
+        if (nextQuantity > item.available) return [line];
+
+        return [{ ...line, quantity: nextQuantity }];
+      }),
+    );
+  }
+
+  function clearCart() {
+    setCart([]);
+  }
+
+  return (
+    <main className="app-shell">
+      <aside className="sidebar">
+        <div className="brand">
+          <div className="brand-mark">
+            <Store size={22} />
+          </div>
+          <div>
+            <strong>Hệ thống bán hàng</strong>
+            <span>LOCAL DEMO</span>
+          </div>
+        </div>
+
+        <div className="side-label">BÁN HÀNG</div>
+        <div className="nav-item active">
+          <ShoppingCart size={18} />
+          <span>Bán tại quầy (POS)</span>
+        </div>
+        <div className="nav-item">
+          <ClipboardList size={18} />
+          <span>Đơn hàng</span>
+          <span className="nav-count">{orders.length}</span>
+        </div>
+        <div className="nav-item">
+          <Package size={18} />
+          <span>Sản phẩm & SKU</span>
+        </div>
+        <div className="nav-item">
+          <Boxes size={18} />
+          <span>Tồn kho</span>
+        </div>
+
+        <div className="sidebar-bottom">
+          <div className="connection-dot" />
+          <div>
+            <strong>Supabase local</strong>
+            <span>Đang kết nối giao diện</span>
+          </div>
+        </div>
+      </aside>
+
+      <section className="main-area">
+        <header className="topbar">
+          <div>
+            <div className="eyebrow">BÁN HÀNG / POS</div>
+            <h1>Bán tại quầy</h1>
+          </div>
+          <button
+            className="button button-secondary"
+            onClick={() => void loadData()}
+            disabled={loading}
+          >
+            {loading ? (
+              <LoaderCircle className="spin" size={16} />
+            ) : (
+              <RefreshCw size={16} />
+            )}
+            Làm mới dữ liệu
+          </button>
+        </header>
+
+        {error && (
+          <div className="error-banner">
+            <AlertCircle size={19} />
+            <div>
+              <strong>Không tải được dữ liệu</strong>
+              <p>{error}</p>
+              <span>
+                Kiểm tra Supabase local, khóa publishable và chính sách RLS.
+              </span>
+            </div>
+          </div>
+        )}
+
+        <section className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-icon purple"><Package size={19} /></div>
+            <div>
+              <span>Sản phẩm đang hoạt động</span>
+              <strong>{activeProducts}</strong>
+              <small>Đọc từ bảng products</small>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon blue"><Boxes size={19} /></div>
+            <div>
+              <span>SKU đang bán</span>
+              <strong>{catalog.length}</strong>
+              <small>Biến thể đang hoạt động</small>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon orange"><Activity size={19} /></div>
+            <div>
+              <span>SKU tồn thấp</span>
+              <strong>{lowStock}</strong>
+              <small>Còn khả dụng từ 3 trở xuống</small>
+            </div>
+          </div>
+        </section>
+
+        <section className="pos-layout">
+          <div className="panel product-panel">
+            <div className="panel-heading">
+              <div>
+                <h2>Chọn sản phẩm</h2>
+                <p>Thêm SKU vào giỏ hàng để tính tiền</p>
+              </div>
+              <span className="subtle-count">{filteredCatalog.length} SKU</span>
+            </div>
+
+            <label className="search-box">
+              <Search size={18} />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Tìm theo tên sản phẩm hoặc SKU..."
+              />
+            </label>
+
+            {loading && catalog.length === 0 ? (
+              <div className="empty-state">
+                <LoaderCircle className="spin" size={24} />
+                <p>Đang tải dữ liệu...</p>
+              </div>
+            ) : filteredCatalog.length === 0 ? (
+              <div className="empty-state">
+                <Package size={30} />
+                <strong>Chưa tìm thấy SKU</strong>
+                <p>Kiểm tra dữ liệu sản phẩm hoặc từ khóa tìm kiếm.</p>
+              </div>
+            ) : (
+              <div className="product-list">
+                {filteredCatalog.map((item) => {
+                  const inCart =
+                    cart.find((line) => line.variantId === item.variantId)
+                      ?.quantity ?? 0;
+                  const outOfStock = item.available === 0;
+
+                  return (
+                    <article className="product-row" key={item.variantId}>
+                      <div className="product-icon"><Package size={21} /></div>
+                      <div className="product-info">
+                        <strong>{item.productName}</strong>
+                        <span>{item.variantName}</span>
+                        <small>SKU: {item.sku}</small>
+                      </div>
+                      <div className="product-stock">
+                        <strong>{money(item.unitPrice)}</strong>
+                        <span className={outOfStock ? "stock-zero" : "stock-ok"}>
+                          Còn {item.available}
+                        </span>
+                      </div>
+                      <button
+                        className="icon-button add-button"
+                        title="Thêm vào giỏ"
+                        aria-label={`Thêm ${item.productName} vào giỏ`}
+                        disabled={
+                          outOfStock || inCart >= item.available
+                        }
+                        onClick={() => addToCart(item)}
+                      >
+                        <Plus size={19} />
+                      </button>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="panel cart-panel">
+            <div className="panel-heading">
+              <div>
+                <h2>Giỏ hàng</h2>
+                <p>{cartQuantity} sản phẩm</p>
+              </div>
+              {cart.length > 0 && (
+                <button className="text-button" onClick={clearCart}>
+                  Xóa giỏ
+                </button>
+              )}
+            </div>
+
+            {cartDetails.length === 0 ? (
+              <div className="empty-cart">
+                <div className="cart-illustration">
+                  <ShoppingCart size={29} />
+                </div>
+                <strong>Giỏ hàng đang trống</strong>
+                <p>Chọn sản phẩm ở danh sách bên trái để bắt đầu.</p>
+              </div>
+            ) : (
+              <div className="cart-lines">
+                {cartDetails.map((line) => (
+                  <div className="cart-line" key={line.variantId}>
+                    <div className="cart-line-info">
+                      <strong>{line.productName}</strong>
+                      <span>{line.sku}</span>
+                      <small>{money(line.unitPrice)} / sản phẩm</small>
+                    </div>
+                    <div className="quantity-control">
+                      <button
+                        aria-label="Giảm số lượng"
+                        onClick={() => changeQuantity(line.variantId, -1)}
+                      >
+                        <Minus size={13} />
+                      </button>
+                      <span>{line.quantity}</span>
+                      <button
+                        aria-label="Tăng số lượng"
+                        disabled={line.quantity >= line.available}
+                        onClick={() => changeQuantity(line.variantId, 1)}
+                      >
+                        <Plus size={13} />
+                      </button>
+                    </div>
+                    <button
+                      className="remove-button"
+                      aria-label="Xóa sản phẩm khỏi giỏ"
+                      onClick={() =>
+                        setCart((current) =>
+                          current.filter(
+                            (entry) => entry.variantId !== line.variantId,
+                          ),
+                        )
+                      }
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="cart-summary">
+              <div className="summary-row">
+                <span>Tạm tính</span>
+                <strong>{money(cartTotal)}</strong>
+              </div>
+              <div className="summary-row">
+                <span>Giảm giá</span>
+                <strong>{money(0)}</strong>
+              </div>
+              <div className="summary-total">
+                <span>Tổng thanh toán</span>
+                <strong>{money(cartTotal)}</strong>
+              </div>
+
+              <button
+                className="button button-primary checkout-button"
+                disabled={cartDetails.length === 0}
+                onClick={() =>
+                  window.alert(
+                    "Giao diện demo chưa ghi đơn hàng. Bước tiếp theo sẽ nối API backend an toàn để tạo đơn và giữ tồn kho.",
+                  )
+                }
+              >
+                Tiếp tục tạo đơn
+              </button>
+              <p className="checkout-note">
+                <AlertCircle size={14} />
+                Chưa ghi đơn hoặc giữ tồn kho trong bước demo này.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="panel orders-panel">
+          <div className="panel-heading">
+            <div>
+              <h2>Đơn hàng gần đây</h2>
+              <p>Dữ liệu mới nhất từ sales_orders</p>
+            </div>
+            <span className="subtle-count">{orders.length} đơn</span>
+          </div>
+
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Mã đơn</th>
+                  <th>Trạng thái</th>
+                  <th>Tổng tiền</th>
+                  <th>Thời gian tạo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map((order) => (
+                  <tr key={order.id}>
+                    <td className="order-number">{order.order_number}</td>
+                    <td>
+                      <span className={`status status-${order.status}`}>
+                        {statusLabel[order.status] ?? order.status}
+                      </span>
+                    </td>
+                    <td className="amount">
+                      {money(Number(order.total_amount), order.currency)}
+                    </td>
+                    <td>{dateTime(order.created_at)}</td>
+                  </tr>
+                ))}
+                {!loading && orders.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="table-empty">
+                      Chưa có đơn hàng.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <footer className="page-footer">
+          <span>
+            <CheckCircle2 size={15} />
+            Chế độ demo · Chưa bật ghi đơn
+          </span>
+          <span>
+            {lastUpdated
+              ? `Cập nhật lúc ${lastUpdated.toLocaleTimeString("vi-VN")}`
+              : "Chưa đồng bộ"}
+          </span>
+        </footer>
+      </section>
+    </main>
+  );
+}
