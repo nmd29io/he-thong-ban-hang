@@ -54,7 +54,7 @@ export function useStoreData(
       ] = await Promise.all([
         supabase
           .from("products")
-          .select("id,name,description,is_active,created_at")
+          .select("id,name,description,image_path,is_active,created_at")
           .order("name"),
         supabase
           .from("product_variants")
@@ -74,7 +74,7 @@ export function useStoreData(
           .limit(250),
         supabase
           .from("customers")
-          .select("id,store_id,name,phone,email,notes,created_at,updated_at")
+          .select("id,store_id,name,phone,email,notes,shipping_address,created_at,updated_at")
           .eq("store_id", selectedStoreId)
           .order("name")
           .limit(500),
@@ -175,4 +175,3 @@ export function useStoreData(
     setReportUntil,
   };
 }
-

@@ -4,6 +4,9 @@
 # working directory name when running `supabase init`.
 project_id = "he-thong-ban-hang"
 
+[functions.storefront]
+verify_jwt = false
+
 [api]
 enabled = true
 # Port to use for the API URL.

@@ -5,6 +5,14 @@ type Table<Row> = {
   Relationships: [];
 };
 
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
+
 export type Database = {
   public: {
     Tables: {
@@ -34,6 +42,7 @@ export type Database = {
         id: string;
         name: string;
         description: string | null;
+        image_path: string | null;
         is_active: boolean;
         created_at: string;
       }>;
@@ -85,6 +94,7 @@ export type Database = {
         phone: string | null;
         email: string | null;
         notes: string | null;
+        shipping_address: string | null;
         created_at: string;
         updated_at: string;
       }>;
@@ -162,6 +172,18 @@ export type Database = {
           p_sku: string;
           p_variant_name: string;
           p_unit_price: number;
+        };
+        Returns: string;
+      };
+      create_storefront_order: {
+        Args: {
+          p_store_id: string;
+          p_warehouse_id: string;
+          p_items: Json;
+          p_customer_name: string;
+          p_customer_phone: string;
+          p_shipping_address: string;
+          p_idempotency_key: string;
         };
         Returns: string;
       };

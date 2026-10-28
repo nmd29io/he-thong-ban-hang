@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { Balance, CatalogItem, Product, Recommendation, Variant } from "../lib/types";
+import { getProductImageUrl } from "../lib/product-images";
 
 export function useCatalog(
   products: Product[],
@@ -22,6 +23,8 @@ export function useCatalog(
           variantId: variant.id,
           productId: product.id,
           productName: product.name,
+          description: product.description,
+          imageUrl: getProductImageUrl(product.image_path),
           sku: variant.sku,
           variantName: variant.variant_name ?? "Mặc định",
           unitPrice: Number(variant.unit_price),
@@ -63,4 +66,3 @@ export function useCatalog(
 
   return { catalog, recommended, lowStockCount };
 }
-

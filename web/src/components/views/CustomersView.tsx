@@ -48,7 +48,7 @@ export function CustomersView({
         <div className="table-scroll">
           <table>
             <thead>
-              <tr><th>Khách hàng</th><th>Điện thoại</th><th>Đơn mua gần đây</th><th>Tổng chi tiêu trong danh sách</th></tr>
+              <tr><th>Khách hàng</th><th>Điện thoại</th><th>Địa chỉ giao hàng</th><th>Đơn mua gần đây</th><th>Tổng chi tiêu trong danh sách</th></tr>
             </thead>
             <tbody>
               {customers.map((customer) => {
@@ -59,13 +59,14 @@ export function CustomersView({
                   <tr key={customer.id}>
                     <td>{customer.name}</td>
                     <td>{customer.phone ?? "—"}</td>
+                    <td>{customer.shipping_address ?? "—"}</td>
                     <td>{customerOrders.length}</td>
                     <td>{formatMoney(customerOrders.reduce((sum, order) => sum + Number(order.total_amount), 0))}</td>
                   </tr>
                 );
               })}
               {customers.length === 0 && (
-                <tr><td colSpan={4} className="table-empty">Chưa có khách hàng.</td></tr>
+                <tr><td colSpan={5} className="table-empty">Chưa có khách hàng.</td></tr>
               )}
             </tbody>
           </table>

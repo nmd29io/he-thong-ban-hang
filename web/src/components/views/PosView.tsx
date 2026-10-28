@@ -143,7 +143,11 @@ export function PosView({
                 const quantity = cart.find((line) => line.variantId === item.variantId)?.quantity ?? 0;
                 return (
                   <article className="product-row" key={item.variantId}>
-                    <div className="product-icon"><Package size={21} /></div>
+                    <div className="product-icon">
+                      {item.imageUrl
+                        ? <img src={item.imageUrl} alt="" loading="lazy" />
+                        : <Package size={21} />}
+                    </div>
                     <div className="product-info"><strong>{item.productName}</strong><span>{item.variantName}</span><small>SKU: {item.sku}</small></div>
                     <div className="product-stock"><strong>{formatMoney(item.unitPrice)}</strong><span className={item.available === 0 ? "stock-zero" : "stock-ok"}>Còn {item.available}</span></div>
                     <button

@@ -30,6 +30,7 @@ import { InventoryView } from "./components/views/InventoryView";
 import { CustomersView } from "./components/views/CustomersView";
 import { ReportsView } from "./components/views/ReportsView";
 import { AccessView } from "./components/views/AccessView";
+import { StorefrontPage } from "./components/storefront/StorefrontPage";
 import type { Notice } from "./lib/types";
 import { roleNames } from "./lib/types";
 import "./App.css";
@@ -359,9 +360,11 @@ function AppShell() {
             setEditingVariantId={catalogMgmt.setEditingVariantId}
             editingPrice={catalogMgmt.editingPrice}
             setEditingPrice={catalogMgmt.setEditingPrice}
+            imageBusyProductId={catalogMgmt.imageBusyProductId}
             handleCreateProduct={(d) => void catalogMgmt.handleCreateProduct(d)}
             handleAddVariant={(d) => void catalogMgmt.handleAddVariant(d)}
             handleUpdatePrice={(e, id) => void catalogMgmt.handleUpdatePrice(e, id)}
+            handleUploadProductImage={(id, image) => void catalogMgmt.handleUploadProductImage(id, image)}
             toggleProduct={(item) => void catalogMgmt.toggleProduct(item)}
           />
         )}
@@ -443,7 +446,9 @@ function AppShell() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AppShell />
+      {window.location.pathname === "/shop" || window.location.pathname.startsWith("/shop/")
+        ? <StorefrontPage />
+        : <AppShell />}
     </QueryClientProvider>
   );
 }

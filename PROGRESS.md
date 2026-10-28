@@ -1,6 +1,6 @@
 ## Phạm vi và nguồn
 
-Đối chiếu code hiện tại với `README` và `SRS`. README mô tả MVP hiện chạy là POS/quản trị nội bộ; SRS ghi rõ trạng thái draft/chưa phê duyệt. Do đó, bên dưới tách **đã triển khai** khỏi **đề xuất trong SRS/chưa triển khai**.
+Đối chiếu code hiện tại với `README` và `SRS`. SRS ghi rõ trạng thái draft/chưa phê duyệt. Nội dung dưới đây phân biệt các luồng **đã triển khai** với các đề xuất **chưa triển khai**.
 
 ## 1. Actors
 
@@ -11,14 +11,14 @@
 | **Cashier (thu ngân)** | Bán hàng tại quầy và thu tiền | POS, xem đơn, ghi nhận payment, hoàn tất/hủy đơn, xem/tạo/cập nhật khách hàng. Không quản lý danh mục hoặc kho. |
 | **Stock clerk (nhân viên kho)** | Theo dõi và cập nhật tồn | Xem dữ liệu sản phẩm/tồn được cấp; ghi nhập/điều chỉnh, nhập lô CSV; đọc ledger. Không có POS/đơn trong UI. |
 | **Accountant (kế toán)** | Đối soát doanh số và thanh toán | UI có báo cáo; RLS cho phép đọc đơn, payment, khách hàng, ledger. Edge Function cũng cho phép role này gọi `record_payment`, nhưng UI không hiện màn hình đơn cho accountant. |
-| **Khách mua online/guest** | Duyệt sản phẩm và đặt hàng | Là actor trong SRS; chưa có storefront, quyền đọc catalog public, cart/checkout hoặc buyer auth trong code. SRS nói đăng nhập buyer có thể tùy chọn, chưa chốt. |
+| **Khách mua online/guest** | Duyệt sản phẩm và đặt hàng | Có thể xem catalog, tạo giỏ và đặt đơn không cần tài khoản tại `/shop`; checkout yêu cầu tên, số điện thoại và địa chỉ giao hàng. Không có buyer auth hoặc tra cứu đơn online. |
 | **Supabase/backend (actor hệ thống)** | Xác minh quyền và bảo toàn giao dịch | Edge Functions, RLS và PostgreSQL RPC xác thực/kiểm tra dữ liệu, giá, idempotency, giữ tồn, payment và ledger. Đây là actor kỹ thuật trong đặc tả, không phải người dùng được cấp role. |
 
 Trong code, các role và menu được kết hợp tại `App.tsx`, menu hiển thị trong `Sidebar.tsx`, còn kiểm tra action server ở `manage-operations/index.ts`. “Admin” chung trong SRS chỉ gần với owner về một số tác vụ; không nên xem là cùng một role hệ thống.
 
 ## 2. Use case model
 
-`[HIỆN CÓ]` là luồng có code; `[SRS DRAFT]` là use case mô tả trong đặc tả nhưng chưa có trong app. Website online không được hiểu là đã triển khai.
+`[HIỆN CÓ]` là luồng có code; `[SRS DRAFT]` là use case mô tả trong đặc tả nhưng chưa có trong app.
 
 ```mermaid
 flowchart LR
@@ -43,12 +43,12 @@ flowchart LR
     ACL([Grant/update store membership role])
   end
 
-  subgraph ONLINE[Online storefront - draft in SRS, not implemented]
+  subgraph ONLINE[Online storefront - implemented MVP]
     BROWSE([Browse public catalog])
     CART([Build online cart])
     CHECKOUT([Submit online order and contact/shipping details])
-    TRACK([Track online order/delivery])
   end
+  TRACK([Track online order/delivery])
 
   subgraph CORE[Shared backend rules]
     PERM([Validate identity and store role])
@@ -80,9 +80,9 @@ flowchart LR
   A --> RPT
   O --> ACL
 
-  G -. proposed .-> BROWSE
-  G -. proposed .-> CART
-  G -. proposed .-> CHECKOUT
+  G --> BROWSE
+  G --> CART
+  G --> CHECKOUT
   G -. proposed .-> TRACK
 
   SALE --> PERM
@@ -92,16 +92,16 @@ flowchart LR
   INV --> PERM
   CAT --> PERM
   ACL --> PERM
-  CHECKOUT -. not built .-> TX
+  CHECKOUT --> TX
   SYS --> PERM
   SYS --> TX
   SYS --> PAY
 
   classDef draft stroke-dasharray: 5 5
-  class BROWSE,CART,CHECKOUT,TRACK draft
+  class TRACK draft
 ```
 
-SRS mô tả đặt online (xem sản phẩm → giỏ → thông tin liên hệ/nhận hàng → server kiểm tra giá/tồn → tạo đơn chống lặp), nhưng đăng nhập buyer, giữ tồn trước/sau xác nhận và chính sách giao hàng vẫn cần quyết định. Không thấy UI giao hàng, payment gateway/webhook hay theo dõi đơn online trong code. SRS cũng có return/refund nhưng README xác nhận chưa triển khai đổi trả/hoàn tiền.
+Storefront MVP tại `/shop` đọc catalog qua Edge Function, gửi checkout đến backend dùng chung, lưu thông tin khách/địa chỉ và tạo đơn có idempotency; giá và giữ tồn vẫn do RPC hiện hữu xử lý. Buyer auth, theo dõi đơn, điều phối giao hàng và payment gateway/webhook chưa triển khai. SRS cũng có return/refund nhưng README xác nhận chưa triển khai đổi trả/hoàn tiền.
 
 ## 3. Chức năng theo module và quyền
 
@@ -110,12 +110,12 @@ SRS mô tả đặt online (xem sản phẩm → giỏ → thông tin liên hệ
 | Auth & cửa hàng | Đăng nhập email/mật khẩu, khôi phục phiên, chọn cửa hàng/kho, role-gate menu | Thành viên đã cấp membership; owner khởi tạo đầu tiên qua script | Đã có; không thấy signup buyer |
 | POS/tạo đơn | Tìm tên/SKU/biến thể, giỏ, khách tùy chọn, nhận một phần tiền, tạo đơn | Owner/manager/cashier | Đã có; gọi Edge Function `create-order`, server/RPC lấy giá DB và giữ tồn có transaction/idempotency |
 | Quản lý đơn | Danh sách tối đa 250 đơn, ghi nhiều khoản thu tiền mặt/chuyển khoản thủ công, hoàn tất (xuất tồn), hủy (nhả tồn giữ) | UI owner/manager/cashier; Edge Function kiểm tra role tương ứng | Đã có; trạng thái code gồm confirmed/fulfilled/cancelled, không có vòng đời giao hàng online |
-| Catalog & SKU | Tạo product+SKU, thêm variant, cập nhật giá, bật/tắt bán | Owner/manager ghi; store roles đọc theo RLS | Đã có. Lưu ý product/variant hiện không có `store_id`; policy catalog dựa trên role ở bất kỳ store nào, nên đây chưa phải catalog cô lập theo cửa hàng |
+| Catalog & SKU | Tạo product+SKU, thêm variant, cập nhật giá, bật/tắt bán, tải ảnh sản phẩm và hiển thị thumbnail | Owner/manager ghi và tải ảnh; store roles đọc theo RLS; thumbnail công khai từ bucket ảnh riêng | Đã có. Lưu ý product/variant hiện không có `store_id`; policy catalog dựa trên role ở bất kỳ store nào, nên đây chưa phải catalog cô lập theo cửa hàng |
 | Kho | Nhập/điều chỉnh có lý do; batch tối đa 200 dòng/CSV; xem tồn khả dụng/đang giữ, ledger bất biến, cảnh báo ngưỡng thấp | Owner/manager/stock clerk ghi; quyền đọc ledger phụ thuộc role (owner/manager/stock clerk/accountant) | Đã có; qua `manage-operations` + RPC. Kiểm kê theo đợt, chuyển kho, xuất/giao hàng cho shipping không có UI hiện tại |
 | Khách hàng | Xem hồ sơ/lịch sử đơn, tạo hồ sơ tên và điện thoại | UI customer screen cho owner/manager/cashier; accountant có đọc qua RLS nhưng không có screen | Đã có một phần; RLS cho phép sales staff update, nhưng UI hiện thấy chỉ tạo và đọc, không có luồng sửa/xóa đầy đủ |
 | Báo cáo | Doanh số, số đơn, đã thu/còn phải thu, tồn thấp theo khoảng ngày | Owner/manager/accountant | Đã có báo cáo tổng quan; không thấy xuất báo cáo hay báo cáo kế toán tổng hợp |
 | Phân quyền | Tạo/cập nhật membership và role cửa hàng | Chỉ owner; bảo vệ owner cuối cùng ở RPC | Đã có; quản trị tài khoản/Auth tổng thể và audit log theo yêu cầu SRS chưa thấy trong app |
-| Website online | Catalog công khai, cart, checkout, dữ liệu nhận hàng, đặt đơn, tra cứu đơn | SRS gợi ý buyer guest hoặc account tùy chọn | Chưa triển khai; không có anonymous catalog policy hay storefront routes |
+| Website online | Catalog, tìm kiếm, cart, checkout guest, địa chỉ nhận hàng và đặt đơn | Khách guest; catalog/checkout được phục vụ qua Edge Function công khai, không cấp quyền đọc bảng trực tiếp | MVP đã triển khai tại `/shop`; dùng cùng store, catalog, giá, đơn hàng và RPC giữ tồn như POS. Tra cứu/trạng thái giao hàng và thanh toán online chưa có |
 | Payment/returns | Ghi nhận khoản thu thủ công có idempotency | Owner/manager/cashier UI; backend còn cho accountant `record_payment` | Thu thủ công đã có; cổng thanh toán, webhook, hoàn tiền/trả hàng chưa có |
 
 ### Các điểm cần hiểu đúng về quyền

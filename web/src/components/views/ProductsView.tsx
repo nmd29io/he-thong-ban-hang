@@ -1,4 +1,5 @@
 import { Plus } from "lucide-react";
+import { useEffect, useState } from "react";
 import { FormField } from "../FormField";
 import type { CatalogItem, Product } from "../../lib/types";
 import { formatMoney } from "../../lib/utils";
@@ -10,6 +11,7 @@ type CreateProductFormData = {
   productSku: string;
   variantName: string;
   productPrice: string;
+  productImage: FileList | undefined;
 };
 
 type AddVariantFormData = {
@@ -29,9 +31,11 @@ type ProductsViewProps = {
   setEditingVariantId: (id: string) => void;
   editingPrice: string;
   setEditingPrice: (v: string) => void;
+  imageBusyProductId: string;
   handleCreateProduct: (data: CreateProductFormData) => void;
   handleAddVariant: (data: AddVariantFormData) => void;
   handleUpdatePrice: (event: React.FormEvent<HTMLFormElement>, variantId: string) => void;
+  handleUploadProductImage: (productId: string, image: File) => void;
   toggleProduct: (item: CatalogItem) => void;
 };
 
@@ -45,13 +49,27 @@ export function ProductsView({
   setEditingVariantId,
   editingPrice,
   setEditingPrice,
+  imageBusyProductId,
   handleCreateProduct,
   handleAddVariant,
   handleUpdatePrice,
+  handleUploadProductImage,
   toggleProduct,
 }: ProductsViewProps) {
   const { register: registerCreate, handleSubmit: handleCreateSubmit } = createProductForm;
   const { register: registerVariant, handleSubmit: handleVariantSubmit } = addVariantForm;
+  const [imagePreview, setImagePreview] = useState("");
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
+
+  async function submitProduct(data: CreateProductFormData) {
+    await handleCreateProduct(data);
+    if (!createProductForm.getValues("productImage")?.length) setImagePreview("");
+  }
 
   return (
     <>
@@ -59,7 +77,7 @@ export function ProductsView({
         <div className="panel-heading">
           <div><h2>Thêm sản phẩm</h2><p>Tạo sản phẩm cùng SKU đầu tiên trong một giao dịch</p></div>
         </div>
-        <form className="data-form form-grid" onSubmit={(e) => void handleCreateSubmit(handleCreateProduct)(e)}>
+        <form className="data-form form-grid" onSubmit={(e) => void handleCreateSubmit(submitProduct)(e)}>
           <FormField label="Tên sản phẩm">
             <input required maxLength={160} {...registerCreate("productName")} />
           </FormField>
@@ -75,6 +93,19 @@ export function ProductsView({
           <FormField label="Giá bán (VND)">
             <input type="number" min="0" step="1" required {...registerCreate("productPrice")} />
           </FormField>
+          <FormField label="Ảnh sản phẩm (JPEG, PNG, WebP · tối đa 5 MB)">
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              {...registerCreate("productImage", {
+                onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
+                  const image = event.target.files?.[0];
+                  setImagePreview(image ? URL.createObjectURL(image) : "");
+                },
+              })}
+            />
+          </FormField>
+          {imagePreview && <img className="product-image-preview" src={imagePreview} alt="Xem trước ảnh sản phẩm" />}
           <button className="button button-primary" type="submit"><Plus size={16} /> Thêm sản phẩm</button>
         </form>
       </section>
@@ -113,11 +144,29 @@ export function ProductsView({
         <div className="table-scroll">
           <table>
             <thead>
-              <tr><th>Sản phẩm</th><th>SKU</th><th>Biến thể</th><th>Giá</th><th>Trạng thái</th><th></th></tr>
+              <tr><th>Ảnh</th><th>Sản phẩm</th><th>SKU</th><th>Biến thể</th><th>Giá</th><th>Trạng thái</th><th></th></tr>
             </thead>
             <tbody>
               {catalog.map((item) => (
                 <tr key={item.variantId}>
+                  <td>
+                    <label className="product-thumbnail-upload" title={item.imageUrl ? "Đổi ảnh sản phẩm" : "Thêm ảnh sản phẩm"}>
+                      {item.imageUrl
+                        ? <img src={item.imageUrl} alt={`Ảnh ${item.productName}`} />
+                        : <span>+</span>}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        aria-label={`Tải ảnh cho ${item.productName}`}
+                        disabled={imageBusyProductId === item.productId}
+                        onChange={(event) => {
+                          const image = event.target.files?.[0];
+                          if (image) handleUploadProductImage(item.productId, image);
+                          event.target.value = "";
+                        }}
+                      />
+                    </label>
+                  </td>
                   <td>{item.productName}</td>
                   <td>{item.sku}</td>
                   <td>{item.variantName}</td>
@@ -145,7 +194,7 @@ export function ProductsView({
                 </tr>
               ))}
               {!loading && catalog.length === 0 && (
-                <tr><td colSpan={6} className="table-empty">Chưa có sản phẩm.</td></tr>
+                <tr><td colSpan={7} className="table-empty">Chưa có sản phẩm.</td></tr>
               )}
             </tbody>
           </table>

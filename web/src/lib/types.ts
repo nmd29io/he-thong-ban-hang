@@ -20,6 +20,8 @@ export type CatalogItem = {
   variantId: string;
   productId: string;
   productName: string;
+  description: string | null;
+  imageUrl: string | null;
   sku: string;
   variantName: string;
   unitPrice: number;
@@ -68,4 +70,3 @@ export const orderStatusNames: Record<string, string> = {
   fulfilled: "Hoàn tất",
   cancelled: "Đã hủy",
 };
-
