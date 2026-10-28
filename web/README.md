@@ -16,33 +16,119 @@
 
 MVP này chưa tích hợp kênh bán trực tuyến, cổng thanh toán ngoài, đổi trả/hoàn tiền, loyalty hoặc gợi ý AI.
 
+## Cấu trúc mã nguồn
+
+```text
+.
+├── package.json                 # Lệnh pnpm dùng chung ở workspace root
+├── pnpm-workspace.yaml
+├── pnpm-lock.yaml
+├── supabase/
+│   ├── config.toml              # Cấu hình Supabase CLI
+│   ├── migrations/              # Thay đổi schema, RPC và quyền dữ liệu theo phiên bản
+│   ├── functions/
+│   │   ├── create-order/        # Tạo đơn và giữ tồn
+│   │   └── manage-operations/   # Kho, thanh toán, hoàn tất/hủy đơn
+│   └── tests/                   # Kiểm thử SQL cho luồng bán hàng
+└── web/
+    ├── package.json             # Scripts và dependencies của giao diện
+    └── src/
+        ├── App.tsx              # Ghép ứng dụng, phiên đăng nhập và điều hướng màn hình
+        ├── components/          # Thành phần giao diện, layout và các màn hình
+        ├── hooks/               # Trạng thái, truy vấn dữ liệu và thao tác theo nghiệp vụ
+        ├── lib/                 # Supabase client, kiểu dữ liệu, tiện ích và bộ gọi Edge Function
+        ├── assets/              # Tài nguyên tĩnh
+        ├── index.css
+        └── App.css
+```
+
+## Kiến trúc
+
+Giao diện là ứng dụng React/TypeScript chạy bằng Vite. `App.tsx` ghép các hooks nghiệp vụ với layout và các màn hình; hooks tách việc tải dữ liệu, xác thực và thao tác theo nghiệp vụ khỏi phần trình bày.
+
+```text
+Trình duyệt (React)
+  └── hooks và Supabase client
+      ├── Supabase Data API / RPC ── truy vấn và thao tác được RLS cho phép
+      └── Edge Functions ── thao tác nghiệp vụ cần kiểm tra quyền phía server
+                                └── RPC PostgreSQL ── kiểm tra và cập nhật dữ liệu
+```
+
+- `lib/supabase.ts` khởi tạo client bằng Project URL và publishable key; frontend không chứa service-role key.
+- Các hooks truy vấn Supabase qua client dùng chung. `useStoreData` dùng TanStack Query để cache dữ liệu theo cửa hàng, kho và khoảng ngày báo cáo.
+- Một số thao tác CRUD gọi Data API hoặc RPC trực tiếp và được giới hạn bởi quyền cơ sở dữ liệu/RLS.
+- Tạo đơn gọi `create-order`; biến động kho, thanh toán, hoàn tất và hủy đơn gọi `manage-operations`. Các function yêu cầu danh tính người dùng và kiểm tra quyền thành viên cửa hàng trước khi thực hiện RPC.
+- Quy tắc toàn vẹn và cập nhật quan trọng được đặt trong PostgreSQL RPC/migration để thao tác như tạo đơn và giữ tồn diễn ra trong transaction. Migration được quản lý trong `supabase/migrations/`; kiểm thử SQL nằm trong `supabase/tests/`.
+
+## Cài đặt
+
+Từ thư mục gốc, cài pnpm bằng Corepack (nếu lệnh `pnpm` chưa có), sau đó cài dependencies:
+
+```powershell
+corepack enable
+pnpm install
+```
+
 ## Chạy local
 
-Từ thư mục gốc:
+Khởi động Supabase local và ứng dụng từ thư mục gốc:
 
 ```powershell
 supabase start
 supabase migration up --local
-Set-Location web
-npm install
-npm run dev
+pnpm dev
 ```
 
-Đặt `VITE_SUPABASE_URL` và `VITE_SUPABASE_ANON_KEY` trong `web/.env.local`. Không đặt service-role/secret key ở biến môi trường `VITE_*` hoặc trong mã trình duyệt. Các Edge Functions cần được chạy cùng môi trường Supabase local bằng `supabase functions serve`.
+Đặt `VITE_SUPABASE_URL` và `VITE_SUPABASE_PUBLISHABLE_KEY` trong `web/.env.local`, dùng URL và publishable key của Supabase local. Có thể lấy các giá trị này bằng `supabase status`. Chạy Edge Functions trong một terminal khác:
+
+```powershell
+supabase functions serve
+```
+
+Không đặt service-role/secret key ở biến môi trường `VITE_*` hoặc trong mã trình duyệt.
 
 Kiểm tra giao diện:
 
 ```powershell
-npm run build
-npm run lint
+pnpm build
+pnpm lint
+```
+
+## Triển khai Supabase Cloud
+
+Đăng nhập Supabase CLI và liên kết thư mục dự án với project Cloud:
+
+```powershell
+supabase login
+supabase link --project-ref <project-ref>
+```
+
+Xem lại các migration trước khi áp dụng chúng lên Cloud:
+
+```powershell
+supabase db push --dry-run
+supabase db push
+```
+
+Kiểm tra kế hoạch migration và dữ liệu trước khi xác nhận lệnh `db push`. Để triển khai Edge Functions, chạy từ thư mục gốc:
+
+```powershell
+supabase functions deploy create-order --project-ref <project-ref>
+supabase functions deploy manage-operations --project-ref <project-ref>
+```
+
+Trong `web/.env.local`, đặt `VITE_SUPABASE_URL` là Project URL và `VITE_SUPABASE_PUBLISHABLE_KEY` là publishable key của cùng project Cloud. Không dùng secret/service-role key ở frontend. Khởi động lại Vite sau khi đổi biến môi trường:
+
+```powershell
+pnpm dev
 ```
 
 ## Khởi tạo quyền chủ cửa hàng
 
-Vai trò `owner` là quyền quản trị cao nhất hiện có trong ứng dụng. Để tạo tài khoản admin đầu tiên, chạy từ thư mục `web`:
+Vai trò `owner` là quyền quản trị cao nhất hiện có trong ứng dụng. Cấu hình URL đúng môi trường trong `web/.env.local`, sau đó để tạo tài khoản admin đầu tiên, chạy từ thư mục gốc:
 
 ```powershell
-npm run seed:admin -- admin@tenmiencuahang.vn
+pnpm --filter web seed:admin -- admin@tenmiencuahang.vn
 ```
 
 Script dùng `VITE_SUPABASE_URL` trong `.env.local`, hỏi service-role key và mật khẩu bằng cách nhập ẩn, rồi cấp `owner` cho cửa hàng duy nhất đang hoạt động. Không lưu service-role key vào biến `VITE_*` hoặc mã nguồn. Nếu có nhiều cửa hàng, truyền thêm `--store-code <mã-cửa-hàng>`; mã này nằm ở cột `code` của `public.stores`. Cần tạo cửa hàng trước khi chạy script.
