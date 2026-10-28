@@ -9,9 +9,8 @@ import {
   Trash2,
   AlertCircle,
 } from "lucide-react";
-import { useState } from "react";
 import { FormField } from "../FormField";
-import type { CatalogItem, Customer, Notice } from "../../lib/types";
+import type { CatalogItem, Customer } from "../../lib/types";
 import { formatMoney } from "../../lib/utils";
 
 type PosViewProps = {
@@ -235,4 +234,3 @@ export function PosView({
     </>
   );
 }
-

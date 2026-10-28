@@ -1,4 +1,4 @@
-import { Store, ShoppingCart, ClipboardList, Package, Boxes, Users, BarChart3, ShieldCheck, Warehouse } from "lucide-react";
+import { Store, ShoppingCart, ClipboardList, Package, Boxes, Users, BarChart3, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Role, Screen, StoreOption, WarehouseOption } from "../../lib/types";
 import { roleNames } from "../../lib/types";
@@ -76,4 +76,3 @@ export function Sidebar({
     </aside>
   );
 }
-

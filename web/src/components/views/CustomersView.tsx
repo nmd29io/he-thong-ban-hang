@@ -20,7 +20,6 @@ type CustomersViewProps = {
 export function CustomersView({
   customers,
   orders,
-  loading,
   form,
   handleCreateCustomer,
 }: CustomersViewProps) {
@@ -75,4 +74,3 @@ export function CustomersView({
     </>
   );
 }
-

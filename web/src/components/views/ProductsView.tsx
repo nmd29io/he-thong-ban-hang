@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 import { FormField } from "../FormField";
-import type { CatalogItem, Notice, Product } from "../../lib/types";
+import type { CatalogItem, Product } from "../../lib/types";
 import { formatMoney } from "../../lib/utils";
 import type { UseFormReturn } from "react-hook-form";
 

@@ -1,6 +1,5 @@
 import { useRef, useState } from "react";
 import { invokeEdgeFunction } from "../lib/edge-functions";
-import { supabase } from "../lib/supabase";
 import type { BulkReceiptLine, BulkReceiptResponse, CatalogItem, Notice } from "../lib/types";
 import { errorText } from "../lib/utils";
 import { parseInventoryCsv } from "../lib/inventory-csv";
@@ -293,4 +292,3 @@ export function useInventory(
     runOperation,
   };
 }
-

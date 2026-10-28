@@ -94,6 +94,22 @@ pnpm build
 pnpm lint
 ```
 
+## Triển khai POS lên Vercel
+
+Tạo một Vercel Project từ GitHub repository này và dùng cấu hình ở `vercel.json`:
+
+- **Root Directory:** `.` (thư mục repository; không bật tùy chọn chỉ include thư mục root).
+- **Install Command:** `pnpm install --frozen-lockfile`.
+- **Build Command:** `pnpm --filter web build`.
+- **Output Directory:** `web/dist`.
+- **Environment Variables:** thêm `VITE_SUPABASE_URL` và `VITE_SUPABASE_PUBLISHABLE_KEY` cho từng môi trường Development, Preview và Production. Dùng URL/key publishable của cùng Supabase project. Không tạo biến `VITE_*` chứa service-role key, secret key hoặc thông tin kết nối database.
+
+Vercel tự build Preview khi có pull request và Production theo branch được cấu hình trong project (mặc định thường là `main`). Kiểm tra log build và đăng nhập trên Preview trước khi gán domain Production. Trong Supabase Auth, cấu hình Site URL và redirect allow-list cho domain thật; không chỉ để URL localhost như cấu hình Supabase local.
+
+Rewrite SPA trong `vercel.json` trả `index.html` cho đường dẫn frontend để tránh 404 khi tải lại trực tiếp. Ứng dụng hiện chưa dùng URL router, nên hiện tại chỉ có màn hình ở `/`; rewrite không tự tạo thêm route ứng dụng.
+
+Hiện repository chỉ có một ứng dụng POS/quản trị tại `web/`, chưa có storefront. Khi hai ứng dụng được triển khai riêng, tạo hai Vercel Project cùng trỏ repository và Root Directory `.`; mỗi project cần lệnh build/output riêng từ workspace. Ưu tiên domain riêng (ví dụ `pos.example.com` và `shop.example.com`) để tránh định tuyến nhầm asset/route. Không triển khai storefront hoặc cấp quyền đọc catalog cho khách chưa đăng nhập cho tới khi nghiệp vụ online và chính sách truy cập được thiết kế, kiểm thử.
+
 ## Triển khai Supabase Cloud
 
 Đăng nhập Supabase CLI và liên kết thư mục dự án với project Cloud:

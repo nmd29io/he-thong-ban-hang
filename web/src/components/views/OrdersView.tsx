@@ -1,5 +1,5 @@
 import { FormField } from "../FormField";
-import type { Customer, Notice, Order, Payment } from "../../lib/types";
+import type { Customer, Order, Payment } from "../../lib/types";
 import { formatDate, formatMoney } from "../../lib/utils";
 import { orderStatusNames } from "../../lib/types";
 

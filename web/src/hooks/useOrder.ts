@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { invokeEdgeFunction } from "../lib/edge-functions";
-import { supabase } from "../lib/supabase";
 import type { Notice, Order } from "../lib/types";
 import { errorText } from "../lib/utils";
 
@@ -91,4 +90,3 @@ export function useOrder(
     canSell,
   };
 }
-

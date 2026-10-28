@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import type { ChangeEvent, RefObject } from "react";
 import { FormField } from "../FormField";
-import type { BulkReceiptLine, CatalogItem, LedgerEntry, Notice } from "../../lib/types";
+import type { BulkReceiptLine, CatalogItem, LedgerEntry } from "../../lib/types";
 import { formatDate } from "../../lib/utils";
 
 type InventoryViewProps = {
@@ -51,7 +51,6 @@ type InventoryViewProps = {
 export function InventoryView({
   catalog,
   ledger,
-  loading,
   canManageStock,
   selectedWarehouseId,
   lowStockCount,
@@ -327,4 +326,3 @@ export function InventoryView({
     </>
   );
 }
-

@@ -1,5 +1,5 @@
 import { supabase } from "../lib/supabase";
-import type { Membership, Notice, Role } from "../lib/types";
+import type { Notice, Role } from "../lib/types";
 import { errorText } from "../lib/utils";
 import { useForm } from "react-hook-form";
 
@@ -39,4 +39,3 @@ export function useAccess(
 
   return { form, handleMembership };
 }
-
