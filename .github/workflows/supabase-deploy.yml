@@ -1,4 +1,4 @@
-name: Supabase validation and deploy
+name: Supabase validation
 
 on:
   pull_request:
@@ -46,40 +46,3 @@ jobs:
       - run: supabase start
       - run: supabase db reset --local
       - run: supabase test db --local supabase/tests/sales_mvp.sql
-
-  deploy:
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    needs: validate
-    runs-on: ubuntu-latest
-    env:
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: supabase/setup-cli@v1
-        with:
-          version: latest
-
-      - name: Check deployment configuration
-        shell: bash
-        run: |
-          test -n "$SUPABASE_ACCESS_TOKEN" || { echo "Missing SUPABASE_ACCESS_TOKEN secret"; exit 1; }
-          test -n "$SUPABASE_DB_PASSWORD" || { echo "Missing SUPABASE_DB_PASSWORD secret"; exit 1; }
-          test -n "$SUPABASE_PROJECT_REF" || { echo "Missing SUPABASE_PROJECT_REF repository variable"; exit 1; }
-
-      - name: Link Supabase project
-        run: supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
-
-      - name: Review migration plan
-        run: supabase db push --linked --dry-run
-
-      - name: Apply migrations
-        run: supabase db push --linked
-
-      - name: Deploy Edge Functions
-        run: |
-          supabase functions deploy create-order --project-ref "$SUPABASE_PROJECT_REF"
-          supabase functions deploy manage-operations --project-ref "$SUPABASE_PROJECT_REF"
-          supabase functions deploy manage-members --project-ref "$SUPABASE_PROJECT_REF"

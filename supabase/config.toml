@@ -432,3 +432,9 @@ entrypoint = "./functions/manage-operations/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/manage-operations/*.html" ]
+
+[functions.manage-members]
+enabled = true
+verify_jwt = true
+import_map = "./functions/manage-members/deno.json"
+entrypoint = "./functions/manage-members/index.ts"

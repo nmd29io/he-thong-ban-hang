@@ -155,14 +155,18 @@ supabase functions deploy manage-members --project-ref <project-ref>
 
 ### Tự động kiểm thử và triển khai Supabase
 
-Workflow `.github/workflows/supabase-deploy.yml` kiểm tra build, lint, kiểu Edge Function và chạy toàn bộ migration cùng bài test SQL trên Supabase local khi mở/cập nhật pull request vào `main`. Khi merge lên `main` (hoặc chạy thủ công workflow trên `main`), workflow chỉ triển khai hosted sau khi toàn bộ kiểm tra đạt: xem kế hoạch bằng `db push --dry-run`, áp dụng migrations, rồi deploy ba Edge Functions nghiệp vụ.
+Workflow `.github/workflows/supabase-deploy.yml` chỉ kiểm thử: build, lint, kiểu Edge Function và toàn bộ migrations/bài test SQL trên Supabase local. Workflow này không cần Supabase secrets và không tự triển khai lên hosted.
 
-Để bật bước hosted deploy, cấu hình các mục sau trong **GitHub repository → Settings → Secrets and variables → Actions**:
+Để Supabase GitHub Integration triển khai khi merge vào production branch, cấu hình tại **Supabase Dashboard → Integrations → GitHub**:
 
-- Repository variable `SUPABASE_PROJECT_REF`: project ref của Supabase hosted.
-- Repository secrets `SUPABASE_ACCESS_TOKEN` và `SUPABASE_DB_PASSWORD`: access token CLI và mật khẩu database của project.
+- Repository: `nmd29io/he-thong-ban-hang`.
+- Working directory: `.` vì thư mục `supabase/` nằm ở repository root.
+- Production branch name: `main`.
+- Bật **Deploy to production** rồi lưu thay đổi.
 
-Không thêm các giá trị này vào Git hoặc log. Workflow không triển khai từ pull request; nếu thiếu cấu hình secrets/variable, kiểm thử vẫn chạy nhưng bước deploy báo lỗi rõ ràng. Cấu hình provider Google OAuth và SMS vẫn thực hiện riêng trong Supabase Auth một lần.
+Khi merge vào `main`, tích hợp sẽ áp dụng migrations và deploy Edge Functions được khai báo trong `supabase/config.toml`. Các function nghiệp vụ `create-order`, `manage-operations` và `manage-members` đều khai báo ở đó và yêu cầu JWT. Tính năng tự tạo preview branch cho pull request cần gói Pro; không cần tính năng đó để production deploy.
+
+Nên bật required status check của Supabase Integration cho pull request để chặn merge khi migration validation thất bại. Build/lint/SQL checks của GitHub Actions vẫn chạy độc lập. Cấu hình provider Google OAuth và SMS vẫn thực hiện riêng trong Supabase Auth một lần.
 
 Trong `web/.env.local`, đặt `VITE_SUPABASE_URL` là Project URL và `VITE_SUPABASE_PUBLISHABLE_KEY` là publishable key của cùng project Cloud. Không dùng secret/service-role key ở frontend. Khởi động lại Vite sau khi đổi biến môi trường:
 
