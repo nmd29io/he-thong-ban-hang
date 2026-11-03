@@ -15,10 +15,15 @@ export function useStoreAccess(userId: string | null) {
   const loadStoreAccess = useCallback(async (uid: string) => {
     setAccessLoading(true);
     setError("");
+    setMemberships([]);
+    setStores([]);
+    setSelectedStoreId("");
+    setWarehouses([]);
+    setSelectedWarehouseId("");
     try {
       const membershipResult = await supabase
         .from("store_memberships")
-        .select("store_id,user_id,role,is_active,created_at")
+        .select("store_id,user_id,role,permissions,is_active,created_at")
         .eq("user_id", uid)
         .eq("is_active", true)
         .order("created_at");
@@ -55,6 +60,15 @@ export function useStoreAccess(userId: string | null) {
   useEffect(() => {
     if (userId) {
       void Promise.resolve().then(() => loadStoreAccess(userId));
+    } else {
+      void Promise.resolve().then(() => {
+        setMemberships([]);
+        setStores([]);
+        setSelectedStoreId("");
+        setWarehouses([]);
+        setSelectedWarehouseId("");
+        setAccessLoading(false);
+      });
     }
   }, [loadStoreAccess, userId]);
 
@@ -97,4 +111,3 @@ export function useStoreAccess(userId: string | null) {
     refreshAccess: loadStoreAccess,
   };
 }
-

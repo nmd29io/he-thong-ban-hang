@@ -1,12 +1,13 @@
 import { Store, ShoppingCart, ClipboardList, Package, Boxes, Users, BarChart3, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Role, Screen, StoreOption, WarehouseOption } from "../../lib/types";
-import { roleNames } from "../../lib/types";
+import { roleNames, type Permission } from "../../lib/permissions";
 
 type MenuItem = { id: Screen; label: string; icon: ReactNode; visible: boolean };
 
 type SidebarProps = {
   currentRole: Role;
+  permissions: Permission[];
   screen: Screen;
   setScreen: (screen: Screen) => void;
   clearMessages: () => void;
@@ -18,6 +19,7 @@ type SidebarProps = {
 
 export function Sidebar({
   currentRole,
+  permissions,
   screen,
   setScreen,
   clearMessages,
@@ -26,19 +28,28 @@ export function Sidebar({
   warehouses,
   selectedWarehouseId,
 }: SidebarProps) {
-  const canSell = ["owner", "manager", "cashier"].includes(currentRole);
-  const canManage = ["owner", "manager"].includes(currentRole);
-  const canManageStock = ["owner", "manager", "stock_clerk"].includes(currentRole);
-  const canViewReports = ["owner", "manager", "accountant"].includes(currentRole);
+  const can = (permission: Permission) => currentRole === "owner" || permissions.includes(permission);
+  const canSell = can("sales.create");
+  const canReadOrders =
+    can("orders.read") ||
+    can("orders.manage") ||
+    can("payments.read") ||
+    can("payments.manage") ||
+    canSell;
+  const canReadProducts = can("products.read") || can("products.manage");
+  const canManageStock = can("inventory.manage");
+  const canReadStock = can("inventory.read") || canManageStock;
+  const canReadCustomers = can("customers.read") || can("customers.manage") || canSell;
+  const canViewReports = can("reports.read");
 
   const menu: MenuItem[] = [
     { id: "pos", label: "Bán tại quầy", icon: <ShoppingCart size={18} />, visible: canSell },
-    { id: "orders", label: "Đơn hàng", icon: <ClipboardList size={18} />, visible: canSell },
-    { id: "products", label: "Sản phẩm & SKU", icon: <Package size={18} />, visible: canManage },
-    { id: "inventory", label: "Tồn kho", icon: <Boxes size={18} />, visible: canManageStock },
-    { id: "customers", label: "Khách hàng", icon: <Users size={18} />, visible: canSell },
+    { id: "orders", label: "Đơn hàng", icon: <ClipboardList size={18} />, visible: canReadOrders },
+    { id: "products", label: "Sản phẩm & SKU", icon: <Package size={18} />, visible: canReadProducts },
+    { id: "inventory", label: "Tồn kho", icon: <Boxes size={18} />, visible: canReadStock },
+    { id: "customers", label: "Khách hàng", icon: <Users size={18} />, visible: canReadCustomers },
     { id: "reports", label: "Báo cáo", icon: <BarChart3 size={18} />, visible: canViewReports },
-    { id: "access", label: "Phân quyền", icon: <ShieldCheck size={18} />, visible: currentRole === "owner" },
+    { id: "access", label: "Phân quyền", icon: <ShieldCheck size={18} />, visible: can("members.manage") },
   ];
   const visibleMenu = menu.filter((item) => item.visible);
 

@@ -13,6 +13,8 @@ type CustomersViewProps = {
   customers: Customer[];
   orders: Order[];
   loading: boolean;
+  canManageCustomers: boolean;
+  canReadOrders: boolean;
   form: UseFormReturn<CustomerFormData>;
   handleCreateCustomer: (data: CustomerFormData) => void;
 };
@@ -20,6 +22,8 @@ type CustomersViewProps = {
 export function CustomersView({
   customers,
   orders,
+  canManageCustomers,
+  canReadOrders,
   form,
   handleCreateCustomer,
 }: CustomersViewProps) {
@@ -27,7 +31,7 @@ export function CustomersView({
 
   return (
     <>
-      <section className="panel data-panel">
+      {canManageCustomers && <section className="panel data-panel">
         <div className="panel-heading">
           <div><h2>Thêm khách hàng</h2><p>Lưu hồ sơ cơ bản và tra cứu đơn mua</p></div>
         </div>
@@ -40,7 +44,7 @@ export function CustomersView({
           </FormField>
           <button className="button button-primary" type="submit"><UserRound size={16} /> Thêm khách hàng</button>
         </form>
-      </section>
+      </section>}
       <section className="panel data-panel">
         <div className="panel-heading">
           <div><h2>Khách hàng</h2><p>{customers.length} hồ sơ cửa hàng</p></div>
@@ -60,8 +64,8 @@ export function CustomersView({
                     <td>{customer.name}</td>
                     <td>{customer.phone ?? "—"}</td>
                     <td>{customer.shipping_address ?? "—"}</td>
-                    <td>{customerOrders.length}</td>
-                    <td>{formatMoney(customerOrders.reduce((sum, order) => sum + Number(order.total_amount), 0))}</td>
+                    <td>{canReadOrders ? customerOrders.length : "—"}</td>
+                    <td>{canReadOrders ? formatMoney(customerOrders.reduce((sum, order) => sum + Number(order.total_amount), 0)) : "—"}</td>
                   </tr>
                 );
               })}

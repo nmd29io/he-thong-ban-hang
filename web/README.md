@@ -87,12 +87,31 @@ supabase functions serve
 
 Không đặt service-role/secret key ở biến môi trường `VITE_*` hoặc trong mã trình duyệt.
 
+## Đăng nhập Google và số điện thoại
+
+Ứng dụng hỗ trợ đăng nhập Google OAuth, email/mật khẩu cho tài khoản cũ, và số điện thoại bằng mật khẩu hoặc mã OTP SMS. Người dùng mới có thể đăng ký qua Google hoặc số điện thoại; sau khi xác thực, chủ cửa hàng vẫn cần cấp quyền thành viên trước khi tài khoản được vào dữ liệu cửa hàng.
+
+Mỗi Supabase project cần được cấu hình nhà cung cấp xác thực một lần:
+
+- **Google:** tạo OAuth client dạng Web trong Google Cloud, thêm callback URL của Supabase Auth (`https://<project-ref>.supabase.co/auth/v1/callback`) làm redirect URI hợp lệ, sau đó cấu hình Google provider trong Supabase Auth bằng client ID và client secret. Cập nhật Site URL và redirect allow-list của Supabase Auth cho domain POS và môi trường local.
+- **SMS:** bật phone auth và cấu hình nhà cung cấp SMS (ví dụ Twilio) cùng mẫu nội dung OTP trong Supabase Auth. Cần thông tin tài khoản nhà cung cấp và giới hạn gửi phù hợp; thử nghiệm local cần cấu hình SMS provider để nhận OTP thực.
+
+Không đưa OAuth client secret, SMS credentials hoặc service-role key vào `VITE_*`, frontend hay Git. Sau bước cấu hình ban đầu, đăng ký/đăng nhập và quản lý thành viên hằng ngày không cần mở Supabase Dashboard.
+
 Kiểm tra giao diện:
 
 ```powershell
 pnpm build
 pnpm lint
 ```
+
+Sau khi chạy `supabase start` và áp dụng migrations lên database local, chạy kiểm tra database:
+
+```powershell
+supabase test db --local supabase/tests/sales_mvp.sql
+```
+
+Tệp kiểm tra bao gồm các quyền thành viên được tùy chỉnh bên cạnh luồng bán hàng.
 
 ## Triển khai POS lên Vercel
 
@@ -131,7 +150,19 @@ Kiểm tra kế hoạch migration và dữ liệu trước khi xác nhận lện
 ```powershell
 supabase functions deploy create-order --project-ref <project-ref>
 supabase functions deploy manage-operations --project-ref <project-ref>
+supabase functions deploy manage-members --project-ref <project-ref>
 ```
+
+### Tự động kiểm thử và triển khai Supabase
+
+Workflow `.github/workflows/supabase-deploy.yml` kiểm tra build, lint, kiểu Edge Function và chạy toàn bộ migration cùng bài test SQL trên Supabase local khi mở/cập nhật pull request vào `main`. Khi merge lên `main` (hoặc chạy thủ công workflow trên `main`), workflow chỉ triển khai hosted sau khi toàn bộ kiểm tra đạt: xem kế hoạch bằng `db push --dry-run`, áp dụng migrations, rồi deploy ba Edge Functions nghiệp vụ.
+
+Để bật bước hosted deploy, cấu hình các mục sau trong **GitHub repository → Settings → Secrets and variables → Actions**:
+
+- Repository variable `SUPABASE_PROJECT_REF`: project ref của Supabase hosted.
+- Repository secrets `SUPABASE_ACCESS_TOKEN` và `SUPABASE_DB_PASSWORD`: access token CLI và mật khẩu database của project.
+
+Không thêm các giá trị này vào Git hoặc log. Workflow không triển khai từ pull request; nếu thiếu cấu hình secrets/variable, kiểm thử vẫn chạy nhưng bước deploy báo lỗi rõ ràng. Cấu hình provider Google OAuth và SMS vẫn thực hiện riêng trong Supabase Auth một lần.
 
 Trong `web/.env.local`, đặt `VITE_SUPABASE_URL` là Project URL và `VITE_SUPABASE_PUBLISHABLE_KEY` là publishable key của cùng project Cloud. Không dùng secret/service-role key ở frontend. Khởi động lại Vite sau khi đổi biến môi trường:
 
@@ -149,11 +180,11 @@ pnpm --filter web seed:admin -- admin@tenmiencuahang.vn
 
 Script dùng `VITE_SUPABASE_URL` trong `.env.local`, hỏi service-role key và mật khẩu bằng cách nhập ẩn, rồi cấp `owner` cho cửa hàng duy nhất đang hoạt động. Không lưu service-role key vào biến `VITE_*` hoặc mã nguồn. Nếu có nhiều cửa hàng, truyền thêm `--store-code <mã-cửa-hàng>`; mã này nằm ở cột `code` của `public.stores`. Cần tạo cửa hàng trước khi chạy script.
 
-Nếu tài khoản đã tồn tại trong Supabase Auth, script giữ nguyên mật khẩu và chỉ cấp quyền cửa hàng. Sau khi đăng nhập, chủ cửa hàng có thể thêm hoặc đổi vai trò cho tài khoản đã đăng ký bằng UUID người dùng. Vai trò chủ cửa hàng cuối cùng không thể bị gỡ qua giao diện.
+Nếu tài khoản đã tồn tại trong Supabase Auth, script giữ nguyên mật khẩu và chỉ cấp quyền cửa hàng. Sau khi đăng nhập, chủ cửa hàng vào **Phân quyền**, tìm nhân viên bằng email đã xác thực hoặc số điện thoại đã xác thực (định dạng quốc tế như `+84901234567`), chọn vai trò mẫu và tùy chỉnh từng quyền. Nhân viên cần đăng ký/đăng nhập trước; ứng dụng không yêu cầu nhập UUID. Vai trò chủ cửa hàng cuối cùng không thể bị gỡ qua giao diện.
 
 ## Lưu ý vận hành
 
-- Migrations `20261023010000`–`20261023040000` mở rộng schema hiện có; không cần reset database để cập nhật.
+- Migrations `20261023010000`–`20261103000000` mở rộng schema hiện có; không cần reset database để cập nhật.
 - Kiểm tra migration trên môi trường local/staging trước khi triển khai hosted. Không chạy `supabase db push` lên môi trường dùng thật nếu chưa xem lại kế hoạch migration và dữ liệu.
 - Đơn mới giữ tồn; hoàn tất đơn mới trừ tồn vật lý và ghi sổ bán. Hủy đơn đã xác nhận sẽ nhả lượng tồn được giữ.
 - Nhập kho hàng loạt chỉ tạo phiếu nhập tăng tồn; điều chỉnh tăng/giảm vẫn dùng form biến động đơn lẻ. CSV UTF-8 dùng hai cột `sku,quantity`; lý do/chứng từ nhập dùng chung cho cả lô. Mỗi lô tối đa 200 dòng, số lượng phải là số nguyên dương. Dòng lỗi không làm mất các dòng đã ghi thành công và có thể thử lại an toàn.

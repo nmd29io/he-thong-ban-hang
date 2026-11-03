@@ -25,6 +25,7 @@ type ProductsViewProps = {
   catalog: CatalogItem[];
   products: Product[];
   loading: boolean;
+  canManageProducts: boolean;
   createProductForm: UseFormReturn<CreateProductFormData>;
   addVariantForm: UseFormReturn<AddVariantFormData>;
   editingVariantId: string;
@@ -43,6 +44,7 @@ export function ProductsView({
   catalog,
   products,
   loading,
+  canManageProducts,
   createProductForm,
   addVariantForm,
   editingVariantId,
@@ -73,7 +75,7 @@ export function ProductsView({
 
   return (
     <>
-      <section className="panel data-panel">
+      {canManageProducts && <section className="panel data-panel">
         <div className="panel-heading">
           <div><h2>Thêm sản phẩm</h2><p>Tạo sản phẩm cùng SKU đầu tiên trong một giao dịch</p></div>
         </div>
@@ -108,9 +110,9 @@ export function ProductsView({
           {imagePreview && <img className="product-image-preview" src={imagePreview} alt="Xem trước ảnh sản phẩm" />}
           <button className="button button-primary" type="submit"><Plus size={16} /> Thêm sản phẩm</button>
         </form>
-      </section>
+      </section>}
 
-      <section className="panel data-panel">
+      {canManageProducts && <section className="panel data-panel">
         <div className="panel-heading">
           <div><h2>Thêm SKU cho sản phẩm</h2><p>Một sản phẩm có thể có nhiều biến thể/SKU</p></div>
         </div>
@@ -134,7 +136,7 @@ export function ProductsView({
           </FormField>
           <button className="button button-primary" type="submit"><Plus size={16} /> Thêm SKU</button>
         </form>
-      </section>
+      </section>}
 
       <section className="panel data-panel">
         <div className="panel-heading">
@@ -144,28 +146,30 @@ export function ProductsView({
         <div className="table-scroll">
           <table>
             <thead>
-              <tr><th>Ảnh</th><th>Sản phẩm</th><th>SKU</th><th>Biến thể</th><th>Giá</th><th>Trạng thái</th><th></th></tr>
+              <tr><th>Ảnh</th><th>Sản phẩm</th><th>SKU</th><th>Biến thể</th><th>Giá</th><th>Trạng thái</th>{canManageProducts && <th></th>}</tr>
             </thead>
             <tbody>
               {catalog.map((item) => (
                 <tr key={item.variantId}>
                   <td>
-                    <label className="product-thumbnail-upload" title={item.imageUrl ? "Đổi ảnh sản phẩm" : "Thêm ảnh sản phẩm"}>
-                      {item.imageUrl
-                        ? <img src={item.imageUrl} alt={`Ảnh ${item.productName}`} />
-                        : <span>+</span>}
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        aria-label={`Tải ảnh cho ${item.productName}`}
-                        disabled={imageBusyProductId === item.productId}
-                        onChange={(event) => {
-                          const image = event.target.files?.[0];
-                          if (image) handleUploadProductImage(item.productId, image);
-                          event.target.value = "";
-                        }}
-                      />
-                    </label>
+                    {canManageProducts ? (
+                      <label className="product-thumbnail-upload" title={item.imageUrl ? "Đổi ảnh sản phẩm" : "Thêm ảnh sản phẩm"}>
+                        {item.imageUrl
+                          ? <img src={item.imageUrl} alt={`Ảnh ${item.productName}`} />
+                          : <span>+</span>}
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          aria-label={`Tải ảnh cho ${item.productName}`}
+                          disabled={imageBusyProductId === item.productId}
+                          onChange={(event) => {
+                            const image = event.target.files?.[0];
+                            if (image) handleUploadProductImage(item.productId, image);
+                            event.target.value = "";
+                          }}
+                        />
+                      </label>
+                    ) : item.imageUrl ? <img className="product-image-thumbnail" src={item.imageUrl} alt={`Ảnh ${item.productName}`} /> : "—"}
                   </td>
                   <td>{item.productName}</td>
                   <td>{item.sku}</td>
@@ -185,16 +189,16 @@ export function ProductsView({
                     ) : formatMoney(item.unitPrice)}
                   </td>
                   <td><span className={`status ${item.isActive ? "status-paid" : "status-cancelled"}`}>{item.isActive ? "Đang bán" : "Đã ẩn"}</span></td>
-                  <td className="table-actions">
+                  {canManageProducts && <td className="table-actions">
                     <div className="table-action-buttons">
                       <button className="text-button" onClick={() => { setEditingVariantId(item.variantId); setEditingPrice(String(item.unitPrice)); }}>Sửa giá</button>
                       <button className="text-button" onClick={() => toggleProduct(item)}>{item.isActive ? "Ngừng bán" : "Kích hoạt"}</button>
                     </div>
-                  </td>
+                  </td>}
                 </tr>
               ))}
               {!loading && catalog.length === 0 && (
-                <tr><td colSpan={7} className="table-empty">Chưa có sản phẩm.</td></tr>
+                <tr><td colSpan={canManageProducts ? 7 : 6} className="table-empty">Chưa có sản phẩm.</td></tr>
               )}
             </tbody>
           </table>

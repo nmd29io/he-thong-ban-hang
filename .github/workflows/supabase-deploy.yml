@@ -1,0 +1,85 @@
+name: Supabase validation and deploy
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm lint
+      - run: deno check --config supabase/functions/create-order/deno.json supabase/functions/create-order/index.ts
+      - run: deno check --config supabase/functions/manage-operations/deno.json supabase/functions/manage-operations/index.ts
+      - run: deno check --config supabase/functions/manage-members/deno.json supabase/functions/manage-members/index.ts
+      - run: supabase start
+      - run: supabase db reset --local
+      - run: supabase test db --local supabase/tests/sales_mvp.sql
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    needs: validate
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Check deployment configuration
+        shell: bash
+        run: |
+          test -n "$SUPABASE_ACCESS_TOKEN" || { echo "Missing SUPABASE_ACCESS_TOKEN secret"; exit 1; }
+          test -n "$SUPABASE_DB_PASSWORD" || { echo "Missing SUPABASE_DB_PASSWORD secret"; exit 1; }
+          test -n "$SUPABASE_PROJECT_REF" || { echo "Missing SUPABASE_PROJECT_REF repository variable"; exit 1; }
+
+      - name: Link Supabase project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Review migration plan
+        run: supabase db push --linked --dry-run
+
+      - name: Apply migrations
+        run: supabase db push --linked
+
+      - name: Deploy Edge Functions
+        run: |
+          supabase functions deploy create-order --project-ref "$SUPABASE_PROJECT_REF"
+          supabase functions deploy manage-operations --project-ref "$SUPABASE_PROJECT_REF"
+          supabase functions deploy manage-members --project-ref "$SUPABASE_PROJECT_REF"

@@ -205,6 +205,18 @@ tbody tr:last-child td { border-bottom: 0; }
 }
 .onboarding-card > svg { color: #6558df; }
 .auth-card .error-banner { margin: 0; }
+.auth-divider { display: flex; align-items: center; gap: 10px; color: #8b91a3; font-size: 11px; }
+.auth-divider::before, .auth-divider::after { content: ""; height: 1px; flex: 1; background: #e5eaf2; }
+.auth-mode-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px; border-radius: 9px; background: #f3f5fa; }
+.auth-mode-switch button { border: 0; border-radius: 6px; padding: 8px; color: #596176; background: transparent; font-size: 12px; font-weight: 700; }
+.auth-mode-switch button.active { color: #5143c3; background: #fff; box-shadow: 0 1px 3px rgba(15, 23, 42, .12); }
+.auth-card form { display: flex; flex-direction: column; gap: 12px; }
+.permission-fieldset { display: flex; flex-direction: column; gap: 10px; min-width: 0; margin: 0; padding: 14px; border: 1px solid #e0e3eb; border-radius: 10px; }
+.permission-fieldset legend { padding: 0 5px; color: #30364b; font-size: 12px; font-weight: 700; }
+.permission-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
+.permission-option { display: flex; align-items: center; gap: 8px; color: #596176; font-size: 12px; }
+.permission-option input { accent-color: #6558df; }
+.permission-fieldset .helper-copy { margin: 0; }
 .form-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .form-field > span { color: #596176; font-size: 11px; font-weight: 700; }
 .form-field input, .form-field select, .topbar-actions select {

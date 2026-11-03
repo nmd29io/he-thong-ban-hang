@@ -10,7 +10,9 @@ type OrdersViewProps = {
   paymentsByOrder: Map<string, number>;
   customerById: Map<string, string | null>;
   loading: boolean;
-  canSell: boolean;
+  canManageOrders: boolean;
+  canManagePayments: boolean;
+  canViewPayments: boolean;
   paymentOrderId: string;
   setPaymentOrderId: (id: string) => void;
   paymentAmount: string;
@@ -26,7 +28,9 @@ type OrdersViewProps = {
 export function OrdersView({
   orders,
   loading,
-  canSell,
+  canManageOrders,
+  canManagePayments,
+  canViewPayments,
   paymentsByOrder,
   customerById,
   paymentOrderId,
@@ -63,18 +67,18 @@ export function OrdersView({
                   <td>{order.customer_id ? customerById.get(order.customer_id) ?? "Khách hàng" : "Khách lẻ"}</td>
                   <td><span className={`status status-${order.status}`}>{orderStatusNames[order.status] ?? order.status}</span></td>
                   <td className="amount">{formatMoney(Number(order.total_amount), order.currency)}</td>
-                  <td>{formatMoney(paid, order.currency)}</td>
+                  <td>{canViewPayments ? formatMoney(paid, order.currency) : "—"}</td>
                   <td>{formatDate(order.created_at)}</td>
                   <td className="table-actions">
                     <div className="table-action-buttons">
-                      {order.status === "confirmed" && canSell && (
+                      {order.status === "confirmed" && (canManageOrders || canManagePayments) && (
                         <>
-                          <button className="text-button" onClick={() => { setPaymentOrderId(order.id); setPaymentAmount(""); setError(""); }}>Thu tiền</button>
-                          <button className="text-button" onClick={() => completeOrder(order)}>Hoàn tất</button>
-                          <button className="text-button danger-text" onClick={() => cancelOrder(order)}>Hủy</button>
+                          {canManagePayments && <button className="text-button" onClick={() => { setPaymentOrderId(order.id); setPaymentAmount(""); setError(""); }}>Thu tiền</button>}
+                          {canManageOrders && <button className="text-button" onClick={() => completeOrder(order)}>Hoàn tất</button>}
+                          {canManageOrders && <button className="text-button danger-text" onClick={() => cancelOrder(order)}>Hủy</button>}
                         </>
                       )}
-                      {order.status === "fulfilled" && canSell && paid < Number(order.total_amount) && (
+                      {order.status === "fulfilled" && canManagePayments && paid < Number(order.total_amount) && (
                         <button className="text-button" onClick={() => { setPaymentOrderId(order.id); setPaymentAmount(""); }}>Thu tiền</button>
                       )}
                     </div>
@@ -88,7 +92,7 @@ export function OrdersView({
           </tbody>
         </table>
       </div>
-      {paymentOrderId && (
+      {paymentOrderId && canManagePayments && (
         <form className="inline-form payment-form" onSubmit={(event) => void handleRecordPayment(event)}>
           <strong>Ghi nhận thanh toán</strong>
           <FormField label="Số tiền">

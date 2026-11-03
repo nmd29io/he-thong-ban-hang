@@ -36,14 +36,14 @@ function isUuid(value: unknown): value is string {
       .test(value);
 }
 
-function getAllowedRoles(action: Action): string[] {
+function getRequiredPermission(action: Action): string {
   if (action === "inventory_movement" || action === "inventory_movement_batch") {
-    return ["owner", "manager", "stock_clerk"];
+    return "inventory.manage";
   }
   if (action === "record_payment") {
-    return ["owner", "manager", "cashier", "accountant"];
+    return "payments.manage";
   }
-  return ["owner", "manager", "cashier"];
+  return "orders.manage";
 }
 
 function errorResponse(error: { code?: string; message: string }) {
@@ -147,7 +147,7 @@ export default {
     const { data: membership, error: membershipError } =
       await ctx.supabaseAdmin
         .from("store_memberships")
-        .select("role")
+        .select("role,permissions")
         .eq("user_id", userId)
         .eq("store_id", store_id)
         .eq("is_active", true)
@@ -157,13 +157,22 @@ export default {
       console.error("Membership lookup failed:", membershipError.message);
       return jsonResponse({ error: "Không thể xác minh quyền cửa hàng." }, 500);
     }
-    if (!membership || !getAllowedRoles(action).includes(membership.role)) {
+    if (
+      !membership ||
+      (membership.role !== "owner" &&
+        !membership.permissions.includes(getRequiredPermission(action)))
+    ) {
       return jsonResponse({ error: "Tài khoản không có quyền thực hiện thao tác này." }, 403);
     }
 
     if (action === "inventory_movement_batch") {
+      if (!Array.isArray(rows) || typeof note !== "string") {
+        return jsonResponse({ error: "Thông tin lô nhập kho không hợp lệ." }, 400);
+      }
+      const batchRows: unknown[] = rows;
+      const batchNote = note.trim();
       const seenRowIds = new Set<string>();
-      const parsedRows: InventoryBatchRow[] = rows.map((row, index) => {
+      const parsedRows: InventoryBatchRow[] = batchRows.map((row, index) => {
         const fallbackRowId = `row-${index + 1}`;
         if (!isRecord(row)) {
           return {
@@ -210,7 +219,7 @@ export default {
             p_variant_id: row.variant_id,
             p_quantity_delta: row.quantity_delta,
             p_event_type: "receipt",
-            p_note: note.trim(),
+            p_note: batchNote,
             p_actor_id: userId,
             p_idempotency_key: row.idempotency_key,
           });
@@ -231,6 +240,9 @@ export default {
 
     let result: { data: unknown; error: { code?: string; message: string } | null };
     if (action === "inventory_movement") {
+      if (typeof note !== "string") {
+        return jsonResponse({ error: "Lý do biến động kho không hợp lệ." }, 400);
+      }
       result = await ctx.supabaseAdmin.rpc("record_inventory_movement", {
         p_store_id: store_id,
         p_warehouse_id: warehouse_id,

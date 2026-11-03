@@ -99,6 +99,7 @@ export function InventoryView({
         </div>
       </section>
 
+      {canManageStock && <>
       <section className="panel data-panel">
         <div className="panel-heading">
           <div><h2>Ghi nhận biến động kho</h2><p>Mọi thay đổi được khóa đồng thời và ghi sổ bất biến</p></div>
@@ -280,6 +281,7 @@ export function InventoryView({
           </button>
         </div>
       </section>
+      </>}
 
       <section className="panel data-panel">
         <div className="panel-heading">

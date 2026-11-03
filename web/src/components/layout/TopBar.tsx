@@ -1,6 +1,6 @@
 import { LogOut, RefreshCw, LoaderCircle } from "lucide-react";
 import type { Role, Screen, StoreOption, WarehouseOption } from "../../lib/types";
-import { roleNames } from "../../lib/types";
+import { roleNames } from "../../lib/permissions";
 
 const screenTitles: Record<Screen, string> = {
   pos: "Bán tại quầy",
@@ -87,4 +87,3 @@ export function TopBar({
     </header>
   );
 }
-

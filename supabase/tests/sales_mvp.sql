@@ -1,6 +1,6 @@
 begin;
 
-select plan(27);
+select plan(29);
 
 insert into auth.users (
     id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -14,6 +14,23 @@ values (
     '',
     now(),
     '{"provider":"email","providers":["email"]}'::jsonb,
+    '{}'::jsonb,
+    now(),
+    now()
+);
+
+insert into auth.users (
+    id, aud, role, phone, encrypted_password, phone_confirmed_at,
+    raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+)
+values (
+    '90000000-0000-0000-0000-000000000002',
+    'authenticated',
+    'authenticated',
+    '+84900000002',
+    '',
+    now(),
+    '{"provider":"phone","providers":["phone"]}'::jsonb,
     '{}'::jsonb,
     now(),
     now()
@@ -39,6 +56,36 @@ values (
     '91000000-0000-0000-0000-000000000001',
     '90000000-0000-0000-0000-000000000001',
     'owner'
+);
+
+insert into public.store_memberships (
+    store_id, user_id, role, permissions
+)
+values (
+    '91000000-0000-0000-0000-000000000001',
+    '90000000-0000-0000-0000-000000000002',
+    'cashier',
+    array['inventory.manage']::text[]
+);
+
+set local request.jwt.claim.sub = '90000000-0000-0000-0000-000000000002';
+
+select is(
+    public.user_has_store_permission(
+        '91000000-0000-0000-0000-000000000001',
+        'inventory.manage'
+    ),
+    true,
+    'custom inventory permission is granted'
+);
+
+select is(
+    public.user_has_store_permission(
+        '91000000-0000-0000-0000-000000000001',
+        'sales.create'
+    ),
+    false,
+    'permissions not assigned to a member remain denied'
 );
 
 set local request.jwt.claim.sub = '90000000-0000-0000-0000-000000000001';

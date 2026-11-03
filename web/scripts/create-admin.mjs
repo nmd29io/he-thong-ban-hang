@@ -4,6 +4,21 @@ import { fileURLToPath } from "node:url";
 
 const defaultEmail = "admin@tenmiencuahang.vn";
 const pageSize = 100;
+const ownerPermissions = [
+  "sales.create",
+  "orders.read",
+  "orders.manage",
+  "payments.read",
+  "payments.manage",
+  "customers.read",
+  "customers.manage",
+  "products.read",
+  "products.manage",
+  "inventory.read",
+  "inventory.manage",
+  "reports.read",
+  "members.manage",
+];
 
 function parseArguments(args) {
   let email = defaultEmail;
@@ -165,7 +180,13 @@ async function main() {
   const { error: membershipError } = await supabase
     .from("store_memberships")
     .upsert(
-      { store_id: store.id, user_id: userId, role: "owner", is_active: true },
+      {
+        store_id: store.id,
+        user_id: userId,
+        role: "owner",
+        permissions: ownerPermissions,
+        is_active: true,
+      },
       { onConflict: "store_id,user_id" },
     );
   if (membershipError) {

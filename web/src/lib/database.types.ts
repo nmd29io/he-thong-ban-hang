@@ -35,6 +35,7 @@ export type Database = {
         store_id: string;
         user_id: string;
         role: string;
+        permissions: string[];
         is_active: boolean;
         created_at: string;
       }>;
@@ -149,12 +150,28 @@ export type Database = {
       };
       set_store_membership: {
         Args: {
+          p_actor_id: string;
           p_store_id: string;
           p_user_id: string;
           p_role: string;
+          p_permissions: string[];
           p_is_active?: boolean;
         };
         Returns: undefined;
+      };
+      role_permission_preset: {
+        Args: { p_role: string };
+        Returns: string[];
+      };
+      user_has_store_permission: {
+        Args:
+          | { p_store_id: string; p_permission: string }
+          | { p_store_id: string; p_permission: string; p_user_id: string };
+        Returns: boolean;
+      };
+      user_has_any_store_permission: {
+        Args: { p_permission: string };
+        Returns: boolean;
       };
       create_catalog_item: {
         Args: {

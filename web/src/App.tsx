@@ -9,7 +9,7 @@ import {
   Warehouse,
 } from "lucide-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { Screen } from "./lib/types";
+import type { Permission, Role, Screen } from "./lib/types";
 import { useAuth } from "./hooks/useAuth";
 import { useStoreAccess } from "./hooks/useStoreAccess";
 import { useStoreData } from "./hooks/useStoreData";
@@ -32,7 +32,7 @@ import { ReportsView } from "./components/views/ReportsView";
 import { AccessView } from "./components/views/AccessView";
 import { StorefrontPage } from "./components/storefront/StorefrontPage";
 import type { Notice } from "./lib/types";
-import { roleNames } from "./lib/types";
+import { permissionKeys, rolePermissionPresets } from "./lib/permissions";
 import "./App.css";
 
 const queryClient = new QueryClient({
@@ -44,8 +44,24 @@ const queryClient = new QueryClient({
   },
 });
 
+function isPermission(value: string): value is Permission {
+  return permissionKeys.some((permission) => permission === value);
+}
+
 function AppShell() {
-  const { user, authReady, authBusy, authError, signIn, signOut } = useAuth();
+  const {
+    user,
+    authReady,
+    authBusy,
+    authError,
+    signInWithPhone,
+    signInWithEmail,
+    signUpWithPhone,
+    sendPhoneOtp,
+    verifyPhoneOtp,
+    signInWithGoogle,
+    signOut,
+  } = useAuth();
   const {
     stores,
     selectedStoreId,
@@ -76,16 +92,39 @@ function AppShell() {
     operationKeysRef.current.delete(signature);
   }
 
-  const storeData = useStoreData(user?.id ?? null, selectedStoreId, selectedWarehouseId);
-
   const activeMembership = memberships.find(
     (m) => m.is_active && m.user_id === user?.id && m.store_id === selectedStoreId,
   );
-  const currentRole = (activeMembership?.role ?? "cashier") as typeof roleNames extends Record<infer K, string> ? K : never;
-  const canSell = ["owner", "manager", "cashier"].includes(currentRole);
-  const canManage = ["owner", "manager"].includes(currentRole);
-  const canManageStock = ["owner", "manager", "stock_clerk"].includes(currentRole);
-  const canViewReports = ["owner", "manager", "accountant"].includes(currentRole);
+  const currentRole = (activeMembership?.role ?? "cashier") as Role;
+  const currentPermissions: Permission[] = currentRole === "owner"
+    ? [...permissionKeys]
+    : activeMembership?.permissions.filter(isPermission) ?? rolePermissionPresets[currentRole];
+  const hasPermission = (permission: Permission) =>
+    currentRole === "owner" || currentPermissions.includes(permission);
+  const canSell = hasPermission("sales.create");
+  const canReadOrders =
+    hasPermission("orders.read") ||
+    hasPermission("orders.manage") ||
+    hasPermission("payments.read") ||
+    hasPermission("payments.manage") ||
+    canSell;
+  const canManageOrders = hasPermission("orders.manage");
+  const canViewPayments = hasPermission("payments.read") || hasPermission("payments.manage");
+  const canManagePayments = hasPermission("payments.manage");
+  const canManageProducts = hasPermission("products.manage");
+  const canReadProducts = hasPermission("products.read") || canManageProducts;
+  const canManageStock = hasPermission("inventory.manage");
+  const canReadStock = hasPermission("inventory.read") || canManageStock;
+  const canReadCustomers = hasPermission("customers.read") || hasPermission("customers.manage") || canSell;
+  const canManageCustomers = hasPermission("customers.manage");
+  const canViewReports = hasPermission("reports.read");
+  const canManageMembers = hasPermission("members.manage");
+  const storeData = useStoreData(
+    user?.id ?? null,
+    selectedStoreId,
+    selectedWarehouseId,
+    currentPermissions,
+  );
 
   // Build catalog before cart (cart needs catalog; recommendations need cart)
   const { catalog, lowStockCount } = useCatalog(
@@ -165,18 +204,28 @@ function AppShell() {
   );
 
   const customerHook = useCustomer(selectedStoreId, storeData.invalidateData, setNotice, setError);
-  const accessHook = useAccess(selectedStoreId, storeData.invalidateData, setNotice, setError);
+  const accessHook = useAccess(
+    selectedStoreId,
+    user?.id ?? "",
+    canManageMembers,
+    () => {
+      storeData.invalidateData();
+      if (user?.id) void refreshAccess(user.id);
+    },
+    setNotice,
+    setError,
+  );
 
   const activeStore = stores.find((s) => s.id === selectedStoreId);
 
   const menu = [
     { id: "pos" as Screen, visible: canSell },
-    { id: "orders" as Screen, visible: canSell },
-    { id: "products" as Screen, visible: canManage },
-    { id: "inventory" as Screen, visible: canManageStock },
-    { id: "customers" as Screen, visible: canSell },
+    { id: "orders" as Screen, visible: canReadOrders },
+    { id: "products" as Screen, visible: canReadProducts },
+    { id: "inventory" as Screen, visible: canReadStock },
+    { id: "customers" as Screen, visible: canReadCustomers },
     { id: "reports" as Screen, visible: canViewReports },
-    { id: "access" as Screen, visible: currentRole === "owner" },
+    { id: "access" as Screen, visible: canManageMembers },
   ];
   const visibleScreens = menu.filter((m) => m.visible).map((m) => m.id);
   const activeScreen = visibleScreens.includes(screen) ? screen : (visibleScreens[0] ?? "pos");
@@ -200,7 +249,18 @@ function AppShell() {
   }
 
   if (!user) {
-    return <LoginPage authError={authError} authBusy={authBusy} onSignIn={signIn} />;
+    return (
+      <LoginPage
+        authError={authError}
+        authBusy={authBusy}
+        onSignInWithPhone={signInWithPhone}
+        onSignInWithEmail={signInWithEmail}
+        onSignUpWithPhone={signUpWithPhone}
+        onSendPhoneOtp={sendPhoneOtp}
+        onVerifyPhoneOtp={verifyPhoneOtp}
+        onSignInWithGoogle={signInWithGoogle}
+      />
+    );
   }
 
   if (accessLoading) {
@@ -221,8 +281,7 @@ function AppShell() {
           <ShieldCheck size={30} />
           <h1>Chưa được cấp quyền cửa hàng</h1>
           <p>
-            Quản trị viên cần gán tài khoản này vào cửa hàng với một vai trò.
-            Hướng dẫn khởi tạo nằm trong README của dự án.
+            Đăng ký hoặc đăng nhập trước, sau đó nhờ chủ cửa hàng thêm email hoặc số điện thoại của bạn vào cửa hàng.
           </p>
           {accessError && <div className="error-banner" role="alert">{accessError}</div>}
           <button className="button button-secondary" onClick={() => void refreshAccess(user.id)}>
@@ -241,6 +300,7 @@ function AppShell() {
     <main className="app-shell">
       <Sidebar
         currentRole={currentRole}
+        permissions={currentPermissions}
         screen={activeScreen}
         setScreen={setScreen}
         clearMessages={clearMessages}
@@ -261,9 +321,12 @@ function AppShell() {
           setSelectedWarehouseId={setSelectedWarehouseId}
           warehouses={warehouses}
           selectedWarehouseId={selectedWarehouseId}
-          userEmail={user.email}
+          userEmail={user.email || user.phone}
           loading={storeData.loading}
-          onRefresh={storeData.refetch}
+          onRefresh={() => {
+            if (user?.id) void refreshAccess(user.id);
+            storeData.refetch();
+          }}
           onSignOut={() => void signOut()}
         />
 
@@ -335,7 +398,9 @@ function AppShell() {
             paymentsByOrder={cartHook.paymentsByOrder}
             customerById={customerById}
             loading={storeData.loading}
-            canSell={canSell}
+            canManageOrders={canManageOrders}
+            canManagePayments={canManagePayments}
+            canViewPayments={canViewPayments}
             paymentOrderId={orderHook.paymentOrderId}
             setPaymentOrderId={orderHook.setPaymentOrderId}
             paymentAmount={orderHook.paymentAmount}
@@ -354,6 +419,7 @@ function AppShell() {
             catalog={catalog}
             products={storeData.products}
             loading={storeData.loading}
+            canManageProducts={canManageProducts}
             createProductForm={catalogMgmt.createProductForm}
             addVariantForm={catalogMgmt.addVariantForm}
             editingVariantId={catalogMgmt.editingVariantId}
@@ -410,6 +476,8 @@ function AppShell() {
             orders={storeData.orders}
             loading={storeData.loading}
             form={customerHook.form}
+            canManageCustomers={canManageCustomers}
+            canReadOrders={canReadOrders}
             handleCreateCustomer={(d) => void customerHook.handleCreateCustomer(d)}
           />
         )}
@@ -426,9 +494,11 @@ function AppShell() {
           />
         )}
 
-        {activeScreen === "access" && currentRole === "owner" && (
+        {activeScreen === "access" && canManageMembers && (
           <AccessView
-            members={storeData.members}
+            members={accessHook.members}
+            loading={accessHook.loading}
+            loadError={accessHook.error}
             form={accessHook.form}
             handleMembership={(d) => void accessHook.handleMembership(d)}
           />

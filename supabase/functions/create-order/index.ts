@@ -157,12 +157,12 @@ export default {
       idempotency_key,
     } = body;
 
-    // Kiểm tra quyền cửa hàng bằng client server-side.
+    // Kiểm tra quyền bán hàng bằng client server-side.
     // Không tin user_id do trình duyệt gửi lên.
     const { data: membership, error: membershipError } =
       await ctx.supabaseAdmin
         .from("store_memberships")
-        .select("role")
+        .select("role,permissions")
         .eq("user_id", userId)
         .eq("store_id", store_id)
         .eq("is_active", true)
@@ -178,7 +178,8 @@ export default {
 
     if (
       !membership ||
-      !["owner", "manager", "cashier"].includes(membership.role)
+      (membership.role !== "owner" &&
+        !membership.permissions.includes("sales.create"))
     ) {
       return jsonResponse(
         { error: "Tài khoản không có quyền bán hàng tại cửa hàng này." },
