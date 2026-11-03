@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { KeyRound, LoaderCircle, LogIn, Phone, Store } from "lucide-react";
+import { ArrowLeft, KeyRound, LoaderCircle, LogIn, MailCheck, Phone, Store } from "lucide-react";
 import { FormField } from "../FormField";
 
 type LoginPageProps = {
@@ -7,6 +7,7 @@ type LoginPageProps = {
   authBusy: boolean;
   onSignInWithPhone: (phone: string, password: string) => Promise<boolean>;
   onSignInWithEmail: (email: string, password: string) => Promise<boolean>;
+  onSendPasswordReset: (email: string) => Promise<boolean>;
   onSignUpWithPhone: (phone: string, password: string) => Promise<boolean>;
   onSendPhoneOtp: (phone: string) => Promise<boolean>;
   onVerifyPhoneOtp: (phone: string, token: string) => Promise<boolean>;
@@ -20,6 +21,7 @@ export function LoginPage({
   authBusy,
   onSignInWithPhone,
   onSignInWithEmail,
+  onSendPasswordReset,
   onSignUpWithPhone,
   onSendPhoneOtp,
   onVerifyPhoneOtp,
@@ -34,6 +36,8 @@ export function LoginPage({
   const [isRegistering, setIsRegistering] = useState(false);
   const [otpPending, setOtpPending] = useState(false);
   const [formError, setFormError] = useState("");
+  const [forgotPassword, setForgotPassword] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
 
   function validatePhone() {
     if (!e164PhonePattern.test(phone.trim())) {
@@ -75,6 +79,12 @@ export function LoginPage({
     if (await onVerifyPhoneOtp(phone.trim(), token.trim())) setOtpPending(false);
   }
 
+  async function requestPasswordReset(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFormError("");
+    if (await onSendPasswordReset(email)) setResetEmailSent(true);
+  }
+
   return (
     <main className="auth-page">
       <section className="auth-card">
@@ -84,6 +94,53 @@ export function LoginPage({
         {(authError || formError) && (
           <div className="error-banner" role="alert">{formError || authError}</div>
         )}
+        {forgotPassword ? (
+          resetEmailSent ? (
+            <>
+              <div className="auth-success-message" role="status">
+                <MailCheck size={20} />
+                <p>Nếu email này đã đăng ký, hướng dẫn đặt lại mật khẩu sẽ được gửi đến hộp thư của bạn.</p>
+              </div>
+              <button
+                className="text-button"
+                type="button"
+                onClick={() => {
+                  setForgotPassword(false);
+                  setResetEmailSent(false);
+                }}
+              >
+                <ArrowLeft size={15} /> Quay lại đăng nhập
+              </button>
+            </>
+          ) : (
+            <>
+              <p>Nhập email tài khoản để nhận liên kết đặt lại mật khẩu.</p>
+              <form onSubmit={(event) => void requestPasswordReset(event)}>
+                <FormField label="Email">
+                  <input
+                    autoComplete="email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                  />
+                </FormField>
+                <button className="button button-primary" type="submit" disabled={authBusy}>
+                  {authBusy ? <LoaderCircle className="spin" size={17} /> : <MailCheck size={17} />}
+                  Gửi liên kết đặt lại mật khẩu
+                </button>
+                <button
+                  className="text-button"
+                  type="button"
+                  onClick={() => setForgotPassword(false)}
+                >
+                  <ArrowLeft size={15} /> Quay lại đăng nhập
+                </button>
+              </form>
+            </>
+          )
+        ) : (
+          <>
         <button
           className="button button-secondary"
           type="button"
@@ -120,6 +177,16 @@ export function LoginPage({
           <button className="button button-secondary" type="submit" disabled={authBusy}>
             {authBusy ? <LoaderCircle className="spin" size={17} /> : <KeyRound size={17} />}
             Đăng nhập email
+          </button>
+          <button
+            className="text-button"
+            type="button"
+            onClick={() => {
+              setForgotPassword(true);
+              setFormError("");
+            }}
+          >
+            Quên mật khẩu?
           </button>
         </form>
         <div className="auth-divider"><span>hoặc bằng số điện thoại</span></div>
@@ -213,6 +280,8 @@ export function LoginPage({
           </>
         )}
         <p className="helper-copy">Tài khoản mới cần được chủ cửa hàng cấp quyền trước khi truy cập dữ liệu.</p>
+          </>
+        )}
       </section>
     </main>
   );

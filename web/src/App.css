@@ -205,6 +205,9 @@ tbody tr:last-child td { border-bottom: 0; }
 }
 .onboarding-card > svg { color: #6558df; }
 .auth-card .error-banner { margin: 0; }
+.auth-success-message { display: flex; align-items: flex-start; gap: 10px; padding: 13px; border: 1px solid #bce8d5; border-radius: 10px; background: #eefbf5; color: #187a58; }
+.auth-success-message svg { flex: 0 0 auto; margin-top: 1px; }
+.auth-success-message p { color: inherit; }
 .auth-divider { display: flex; align-items: center; gap: 10px; color: #8b91a3; font-size: 11px; }
 .auth-divider::before, .auth-divider::after { content: ""; height: 1px; flex: 1; background: #e5eaf2; }
 .auth-mode-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px; border-radius: 9px; background: #f3f5fa; }

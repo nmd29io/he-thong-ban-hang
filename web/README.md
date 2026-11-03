@@ -89,7 +89,7 @@ Không đặt service-role/secret key ở biến môi trường `VITE_*` hoặc 
 
 ## Đăng nhập Google và số điện thoại
 
-Ứng dụng hỗ trợ đăng nhập Google OAuth, email/mật khẩu cho tài khoản cũ, và số điện thoại bằng mật khẩu hoặc mã OTP SMS. Người dùng mới có thể đăng ký qua Google hoặc số điện thoại; sau khi xác thực, chủ cửa hàng vẫn cần cấp quyền thành viên trước khi tài khoản được vào dữ liệu cửa hàng.
+Ứng dụng hỗ trợ đăng nhập Google OAuth, email/mật khẩu cho tài khoản cũ, và số điện thoại bằng mật khẩu hoặc mã OTP SMS. Người dùng có thể yêu cầu đặt lại mật khẩu email từ màn hình đăng nhập; liên kết trong email quay lại ứng dụng để đặt mật khẩu mới. Thêm URL production và môi trường local vào Supabase Auth **Redirect URLs**. Người dùng mới có thể đăng ký qua Google hoặc số điện thoại; sau khi xác thực, chủ cửa hàng vẫn cần cấp quyền thành viên trước khi tài khoản được vào dữ liệu cửa hàng.
 
 Mỗi Supabase project cần được cấu hình nhà cung cấp xác thực một lần:
 

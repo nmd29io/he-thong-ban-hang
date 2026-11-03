@@ -23,6 +23,7 @@ import { useAccess } from "./hooks/useAccess";
 import { Sidebar } from "./components/layout/Sidebar";
 import { TopBar } from "./components/layout/TopBar";
 import { LoginPage } from "./components/auth/LoginPage";
+import { PasswordRecoveryPage } from "./components/auth/PasswordRecoveryPage";
 import { PosView } from "./components/views/PosView";
 import { OrdersView } from "./components/views/OrdersView";
 import { ProductsView } from "./components/views/ProductsView";
@@ -54,8 +55,14 @@ function AppShell() {
     authReady,
     authBusy,
     authError,
+    passwordRecovery,
+    passwordRecoveryComplete,
     signInWithPhone,
     signInWithEmail,
+    sendPasswordResetEmail,
+    updatePassword,
+    finishPasswordRecovery,
+    cancelPasswordRecovery,
     signUpWithPhone,
     sendPhoneOtp,
     verifyPhoneOtp,
@@ -248,6 +255,19 @@ function AppShell() {
     );
   }
 
+  if (passwordRecovery) {
+    return (
+      <PasswordRecoveryPage
+        authBusy={authBusy}
+        authError={authError}
+        complete={passwordRecoveryComplete}
+        onUpdatePassword={updatePassword}
+        onContinue={finishPasswordRecovery}
+        onCancel={() => void cancelPasswordRecovery()}
+      />
+    );
+  }
+
   if (!user) {
     return (
       <LoginPage
@@ -255,6 +275,7 @@ function AppShell() {
         authBusy={authBusy}
         onSignInWithPhone={signInWithPhone}
         onSignInWithEmail={signInWithEmail}
+        onSendPasswordReset={sendPasswordResetEmail}
         onSignUpWithPhone={signUpWithPhone}
         onSendPhoneOtp={sendPhoneOtp}
         onVerifyPhoneOtp={verifyPhoneOtp}
