@@ -23,9 +23,12 @@ export type CatalogItem = {
   productName: string;
   description: string | null;
   imageUrl: string | null;
+  category: string | null;
+  brand: string | null;
   sku: string;
   variantName: string;
   unitPrice: number;
+  unit: string;
   onHand: number;
   reserved: number;
   available: number;

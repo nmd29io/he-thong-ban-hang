@@ -135,10 +135,10 @@ export default {
       if (!warehouse) return jsonResponse({ error: "Cửa hàng chưa có kho hoạt động." }, 404);
 
       const [productsResult, variantsResult, balancesResult] = await Promise.all([
-        ctx.supabaseAdmin.from("products").select("id,name,description,image_path").eq("is_active", true).order("name"),
+        ctx.supabaseAdmin.from("products").select("id,name,description,image_path,category,brand").eq("is_active", true).order("name"),
         ctx.supabaseAdmin
           .from("product_variants")
-          .select("id,product_id,sku,variant_name,unit_price")
+          .select("id,product_id,sku,variant_name,unit_price,unit")
           .eq("is_active", true)
           .order("sku"),
         ctx.supabaseAdmin
@@ -167,9 +167,12 @@ export default {
           productName: product.name,
           description: product.description,
           imageUrl,
+          category: product.category,
+          brand: product.brand,
           sku: variant.sku,
           variantName: variant.variant_name ?? "Mặc định",
           unitPrice: Number(variant.unit_price),
+          unit: variant.unit,
           available: Math.max(0, Number(balance?.on_hand ?? 0) - Number(balance?.reserved ?? 0)),
         }];
       });

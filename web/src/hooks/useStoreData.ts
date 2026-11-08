@@ -79,11 +79,11 @@ export function useStoreData(
       ] = await Promise.all([
         canReadProducts ? supabase
           .from("products")
-          .select("id,name,description,image_path,is_active,created_at")
+          .select("id,name,description,image_path,category,brand,is_active,created_at")
           .order("name") : Promise.resolve({ data: [], error: null }),
         canReadProducts ? supabase
           .from("product_variants")
-          .select("id,product_id,sku,variant_name,unit_price,is_active,created_at")
+          .select("id,product_id,sku,variant_name,unit_price,unit,is_active,created_at")
           .order("sku") : Promise.resolve({ data: [], error: null }),
         canReadInventory ? supabase
           .from("inventory_balances")

@@ -140,7 +140,10 @@ export function ProductsView({
 
       <section className="panel data-panel">
         <div className="panel-heading">
-          <div><h2>Danh mục sản phẩm</h2><p>Quản lý giá và trạng thái SKU</p></div>
+          <div>
+            <h2>Danh mục sản phẩm</h2>
+            <p>{canManageProducts ? "Quản lý giá và trạng thái SKU" : "Danh sách sản phẩm và SKU đang bán"}</p>
+          </div>
           <span className="subtle-count">{catalog.length} SKU</span>
         </div>
         <div className="table-scroll">
@@ -171,9 +174,16 @@ export function ProductsView({
                       </label>
                     ) : item.imageUrl ? <img className="product-image-thumbnail" src={item.imageUrl} alt={`Ảnh ${item.productName}`} /> : "—"}
                   </td>
-                  <td>{item.productName}</td>
+                  <td>
+                    <strong>{item.productName}</strong>
+                    {(item.category || item.brand) && (
+                      <small className="catalog-product-meta">
+                        {[item.category, item.brand].filter(Boolean).join(" · ")}
+                      </small>
+                    )}
+                  </td>
                   <td>{item.sku}</td>
-                  <td>{item.variantName}</td>
+                  <td>{item.variantName}<small className="catalog-product-meta">{item.unit}</small></td>
                   <td>
                     {editingVariantId === item.variantId ? (
                       <form className="price-edit" onSubmit={(event) => void handleUpdatePrice(event, item.variantId)}>

@@ -44,6 +44,8 @@ export type Database = {
         name: string;
         description: string | null;
         image_path: string | null;
+        category: string | null;
+        brand: string | null;
         is_active: boolean;
         created_at: string;
       }>;
@@ -53,6 +55,7 @@ export type Database = {
         sku: string;
         variant_name: string | null;
         unit_price: number;
+        unit: string;
         is_active: boolean;
         created_at: string;
       }>;

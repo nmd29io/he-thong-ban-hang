@@ -13,8 +13,9 @@
 - Báo cáo doanh số, số đơn, số đã thu/còn phải thu và tồn thấp theo khoảng ngày.
 - Phân quyền chủ cửa hàng, quản lý, thu ngân, nhân viên kho và kế toán.
 - Gợi ý bán chạy trong 90 ngày; khi chưa có dữ liệu bán, hiển thị sản phẩm còn hàng.
+- Storefront công khai tại `/shop`, có trang chi tiết riêng tại `/shop/product/<product-id>`, tìm kiếm sản phẩm, giỏ hàng và gửi đơn giao hàng không thanh toán trước.
 
-MVP này chưa tích hợp kênh bán trực tuyến, cổng thanh toán ngoài, đổi trả/hoàn tiền, loyalty hoặc gợi ý AI.
+MVP này chưa tích hợp cổng thanh toán ngoài, đổi trả/hoàn tiền, loyalty hoặc gợi ý AI.
 
 ## Cấu trúc mã nguồn
 
@@ -29,6 +30,7 @@ MVP này chưa tích hợp kênh bán trực tuyến, cổng thanh toán ngoài,
 │   ├── functions/
 │   │   ├── create-order/        # Tạo đơn và giữ tồn
 │   │   └── manage-operations/   # Kho, thanh toán, hoàn tất/hủy đơn
+│   │   ├── storefront/          # Catalog công khai và tạo đơn online
 │   └── tests/                   # Kiểm thử SQL cho luồng bán hàng
 └── web/
     ├── package.json             # Scripts và dependencies của giao diện
@@ -89,7 +91,7 @@ Không đặt service-role/secret key ở biến môi trường `VITE_*` hoặc 
 
 ## Đăng nhập Google và số điện thoại
 
-Ứng dụng hỗ trợ đăng nhập Google OAuth, email/mật khẩu cho tài khoản cũ, và số điện thoại bằng mật khẩu hoặc mã OTP SMS. Người dùng có thể yêu cầu đặt lại mật khẩu email từ màn hình đăng nhập; liên kết trong email quay lại ứng dụng để đặt mật khẩu mới. Thêm URL production và môi trường local vào Supabase Auth **Redirect URLs**. Người dùng mới có thể đăng ký qua Google hoặc số điện thoại; sau khi xác thực, chủ cửa hàng vẫn cần cấp quyền thành viên trước khi tài khoản được vào dữ liệu cửa hàng.
+Ứng dụng hỗ trợ đăng nhập Google OAuth, email/mật khẩu cho tài khoản cũ, và số điện thoại bằng mật khẩu hoặc mã OTP SMS. Người dùng có thể yêu cầu đặt lại mật khẩu email từ màn hình đăng nhập; liên kết trong email quay lại **Site URL** đã cấu hình trong Supabase Auth để không đưa người dùng Preview vào deployment cần đăng nhập Vercel. Thêm URL production và môi trường local vào Supabase Auth **Redirect URLs**, đồng thời đặt Site URL là domain ứng dụng công khai. Người dùng mới có thể đăng ký qua Google hoặc số điện thoại; sau khi xác thực, chủ cửa hàng vẫn cần cấp quyền thành viên trước khi tài khoản được vào dữ liệu cửa hàng.
 
 Mỗi Supabase project cần được cấu hình nhà cung cấp xác thực một lần:
 
@@ -123,11 +125,9 @@ Tạo một Vercel Project từ GitHub repository này và dùng cấu hình ở
 - **Output Directory:** `web/dist`.
 - **Environment Variables:** thêm `VITE_SUPABASE_URL` và `VITE_SUPABASE_PUBLISHABLE_KEY` cho từng môi trường Development, Preview và Production. Dùng URL/key publishable của cùng Supabase project. Không tạo biến `VITE_*` chứa service-role key, secret key hoặc thông tin kết nối database.
 
-Vercel tự build Preview khi có pull request và Production theo branch được cấu hình trong project (mặc định thường là `main`). Kiểm tra log build và đăng nhập trên Preview trước khi gán domain Production. Trong Supabase Auth, cấu hình Site URL và redirect allow-list cho domain thật; không chỉ để URL localhost như cấu hình Supabase local.
+Vercel tự build Preview khi có pull request và Production theo branch được cấu hình trong project (mặc định thường là `main`). Kiểm tra log build và đăng nhập trên Preview trước khi gán domain Production. Trong Supabase Auth, đặt Site URL là domain Production công khai, rồi thêm domain Production và môi trường local vào redirect allow-list; không chỉ để URL localhost như cấu hình Supabase local. Luồng đặt lại mật khẩu dùng Site URL này, không dùng domain Preview đang mở.
 
-Rewrite SPA trong `vercel.json` trả `index.html` cho đường dẫn frontend để tránh 404 khi tải lại trực tiếp. Ứng dụng hiện chưa dùng URL router, nên hiện tại chỉ có màn hình ở `/`; rewrite không tự tạo thêm route ứng dụng.
-
-Hiện repository chỉ có một ứng dụng POS/quản trị tại `web/`, chưa có storefront. Khi hai ứng dụng được triển khai riêng, tạo hai Vercel Project cùng trỏ repository và Root Directory `.`; mỗi project cần lệnh build/output riêng từ workspace. Ưu tiên domain riêng (ví dụ `pos.example.com` và `shop.example.com`) để tránh định tuyến nhầm asset/route. Không triển khai storefront hoặc cấp quyền đọc catalog cho khách chưa đăng nhập cho tới khi nghiệp vụ online và chính sách truy cập được thiết kế, kiểm thử.
+Rewrite SPA trong `vercel.json` trả `index.html` cho đường dẫn frontend để tránh 404 khi tải lại trực tiếp. POS/quản trị chạy tại `/`, storefront chạy tại `/shop` với trang chi tiết sản phẩm ở `/shop/product/<product-id>`; người mua có thể tìm theo tên, thương hiệu hoặc SKU, lọc danh mục/thương hiệu, sắp xếp giá và thêm nhanh sản phẩm còn hàng vào giỏ. Storefront tải catalog và gửi đơn qua Edge Function `storefront`, trong khi đơn hàng vẫn được tạo/giữ tồn qua RPC phía máy chủ. Cần áp dụng migration và triển khai Edge Function này cho cùng Supabase project trước khi bật bán online.
 
 ## Triển khai Supabase Cloud
 
