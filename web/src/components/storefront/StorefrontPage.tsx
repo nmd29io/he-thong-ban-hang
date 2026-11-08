@@ -212,8 +212,14 @@ export function StorefrontPage() {
     const item = catalog.find((entry) => entry.variantId === line.variantId);
     return item ? [{ ...item, quantity: line.quantity }] : [];
   });
+  const missingCartLines = data
+    ? cart.filter((line) => !catalog.some((item) => item.variantId === line.variantId))
+    : [];
+  const unresolvedCartLines = data ? missingCartLines : cart;
+  const cartHasInsufficientStock = cartDetails.some((line) => line.quantity > line.available);
   const cartTotal = cartDetails.reduce((total, item) => total + item.unitPrice * item.quantity, 0);
-  const cartQuantity = cartDetails.reduce((total, item) => total + item.quantity, 0);
+  const cartQuantity = cart.reduce((total, item) => total + item.quantity, 0);
+  const availableCartQuantity = cartDetails.reduce((total, item) => total + item.quantity, 0);
 
   function updateQuantity(variantId: string, delta: number) {
     idempotencyRef.current = null;
@@ -258,7 +264,13 @@ export function StorefrontPage() {
 
   async function submitOrder(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!data || cartDetails.length === 0 || checkoutBusy) return;
+    if (
+      !data ||
+      cartDetails.length === 0 ||
+      missingCartLines.length > 0 ||
+      cartHasInsufficientStock ||
+      checkoutBusy
+    ) return;
     setCheckoutBusy(true);
     setCheckoutError("");
 
@@ -406,6 +418,18 @@ export function StorefrontPage() {
           </section>
         ) : isLoading ? (
           <div className="storefront-state"><LoaderCircle className="spin" size={27} /><p>Đang tải thông tin sản phẩm...</p></div>
+        ) : error ? (
+          <section className="storefront-state storefront-state-error">
+            <Package size={28} />
+            <p>{error instanceof Error ? error.message : "Không tải được thông tin sản phẩm."}</p>
+            <button
+              className="storefront-back-link"
+              type="button"
+              onClick={() => void queryClient.invalidateQueries({ queryKey: ["storefront-catalog"] })}
+            >
+              Thử tải lại
+            </button>
+          </section>
         ) : (
           <section className="storefront-state">
             <Package size={28} />
@@ -579,7 +603,24 @@ export function StorefrontPage() {
               <p className="storefront-eyebrow">HOÀN TẤT ĐƠN HÀNG</p>
               <h2 id="storefront-cart-title">Giỏ hàng của bạn</h2>
               <p className="storefront-checkout-caption"><Truck size={16} /> Cửa hàng sẽ liên hệ xác nhận đơn và giao hàng.</p>
-              {cartDetails.length === 0 ? (
+              {!data && cart.length > 0 && (
+                <p className="storefront-form-error" role="status">
+                  {error
+                    ? "Không thể xác minh sản phẩm trong giỏ. Hãy thử tải lại danh mục trước khi đặt hàng."
+                    : "Đang kiểm tra sản phẩm trong giỏ hàng..."}
+                </p>
+              )}
+              {missingCartLines.length > 0 && (
+                <p className="storefront-form-error" role="alert">
+                  Có sản phẩm không còn trong danh mục. Hãy xóa sản phẩm đó khỏi giỏ trước khi đặt hàng.
+                </p>
+              )}
+              {cartHasInsufficientStock && (
+                <p className="storefront-form-error" role="alert">
+                  Số lượng trong giỏ vượt quá tồn kho hiện tại. Hãy điều chỉnh số lượng để tiếp tục.
+                </p>
+              )}
+              {cart.length === 0 ? (
                 <div className="storefront-empty-cart"><ShoppingCart size={28} /><p>Giỏ hàng đang trống.</p><span>Thêm sản phẩm để tiếp tục đặt hàng.</span></div>
               ) : (
                 <div className="storefront-cart-lines">
@@ -595,9 +636,26 @@ export function StorefrontPage() {
                       <button className="storefront-remove" aria-label={`Xóa ${line.productName}`} onClick={() => updateQuantity(line.variantId, -line.quantity)}><X size={15} /></button>
                     </div>
                   ))}
+                  {unresolvedCartLines.map((line) => (
+                    <div className="storefront-cart-line" key={line.variantId}>
+                      <div className="storefront-cart-product">
+                        <strong>{data ? "Sản phẩm không còn khả dụng" : "Đang kiểm tra sản phẩm"}</strong>
+                        <span>{data ? "Vui lòng xóa khỏi giỏ hàng" : "Chưa thể xác minh tồn kho"}</span>
+                      </div>
+                      <span>{line.quantity}</span>
+                      <button
+                        className="storefront-remove"
+                        type="button"
+                        aria-label="Xóa sản phẩm không còn khả dụng"
+                        onClick={() => updateQuantity(line.variantId, -line.quantity)}
+                      >
+                        <X size={15} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
-              <div className="storefront-total"><span>Tạm tính · {cartQuantity} sản phẩm</span><strong>{formatMoney(cartTotal)}</strong></div>
+              <div className="storefront-total"><span>Tạm tính · {availableCartQuantity} sản phẩm</span><strong>{formatMoney(cartTotal)}</strong></div>
             </div>
 
             <form className="storefront-customer-form" onSubmit={(event) => void submitOrder(event)}>
@@ -607,7 +665,17 @@ export function StorefrontPage() {
               <label>Số điện thoại<input required type="tel" inputMode="tel" maxLength={32} value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} autoComplete="tel" placeholder="09xx xxx xxx" /></label>
               <label>Địa chỉ giao hàng<textarea required maxLength={500} rows={3} value={shippingAddress} onChange={(event) => setShippingAddress(event.target.value)} autoComplete="street-address" placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành" /></label>
               {checkoutError && <p className="storefront-form-error" role="alert">{checkoutError}</p>}
-              <button className="storefront-button storefront-button-primary storefront-submit" type="submit" disabled={!data || cartDetails.length === 0 || checkoutBusy}>
+              <button
+                className="storefront-button storefront-button-primary storefront-submit"
+                type="submit"
+                disabled={
+                  !data ||
+                  cartDetails.length === 0 ||
+                  missingCartLines.length > 0 ||
+                  cartHasInsufficientStock ||
+                  checkoutBusy
+                }
+              >
                 {checkoutBusy ? <><LoaderCircle className="spin" size={17} /> Đang gửi đơn...</> : <>Đặt hàng · {formatMoney(cartTotal)} <ArrowRight size={17} /></>}
               </button>
               <p className="storefront-checkout-terms">Đặt hàng không yêu cầu thanh toán trước. Cửa hàng sẽ xác nhận lại thông tin.</p>
