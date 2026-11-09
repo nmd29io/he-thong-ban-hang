@@ -148,8 +148,11 @@ export function LoginPage({
           disabled={authBusy}
         >
           {authBusy ? <LoaderCircle className="spin" size={17} /> : <LogIn size={17} />}
-          Tiếp tục với Google
+          Đăng nhập / đăng ký với Google
         </button>
+        <p className="helper-copy">
+          Đăng nhập Google lần đầu sẽ tự động tạo tài khoản mới.
+        </p>
         <form
           onSubmit={(event) => {
             event.preventDefault();

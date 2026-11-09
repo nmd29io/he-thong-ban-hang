@@ -3,9 +3,6 @@ import {
   AlertCircle,
   CheckCircle2,
   LoaderCircle,
-  LogOut,
-  RefreshCw,
-  ShieldCheck,
   Warehouse,
 } from "lucide-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -23,6 +20,7 @@ import { useAccess } from "./hooks/useAccess";
 import { Sidebar } from "./components/layout/Sidebar";
 import { TopBar } from "./components/layout/TopBar";
 import { LoginPage } from "./components/auth/LoginPage";
+import { ProfilePage } from "./components/auth/ProfilePage";
 import { PasswordRecoveryPage } from "./components/auth/PasswordRecoveryPage";
 import { PosView } from "./components/views/PosView";
 import { OrdersView } from "./components/views/OrdersView";
@@ -61,6 +59,7 @@ function AppShell() {
     signInWithEmail,
     sendPasswordResetEmail,
     updatePassword,
+    updateProfile,
     finishPasswordRecovery,
     cancelPasswordRecovery,
     signUpWithPhone,
@@ -83,6 +82,7 @@ function AppShell() {
   } = useStoreAccess(user?.id ?? null);
 
   const [screen, setScreen] = useState<Screen>("pos");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [search, setSearch] = useState("");
   const [notice, setNotice] = useState<Notice | null>(null);
   const [error, setError] = useState("");
@@ -226,13 +226,15 @@ function AppShell() {
   const activeStore = stores.find((s) => s.id === selectedStoreId);
 
   const menu = [
-    { id: "pos" as Screen, visible: canSell },
-    { id: "orders" as Screen, visible: canReadOrders },
-    { id: "products" as Screen, visible: canReadProducts },
-    { id: "inventory" as Screen, visible: canReadStock },
-    { id: "customers" as Screen, visible: canReadCustomers },
-    { id: "reports" as Screen, visible: canViewReports },
-    { id: "access" as Screen, visible: canManageMembers },
+    { id: "pos" as Screen, visible: stores.length > 0 && canSell },
+    { id: "orders" as Screen, visible: stores.length > 0 && canReadOrders },
+    { id: "products" as Screen, visible: stores.length > 0 && canReadProducts },
+    { id: "inventory" as Screen, visible: stores.length > 0 && canReadStock },
+    { id: "customers" as Screen, visible: stores.length > 0 && canReadCustomers },
+    { id: "reports" as Screen, visible: stores.length > 0 && canViewReports },
+    { id: "access" as Screen, visible: stores.length > 0 && canManageMembers },
+    { id: "shop" as Screen, visible: stores.length === 0 },
+    { id: "profile" as Screen, visible: true },
   ];
   const visibleScreens = menu.filter((m) => m.visible).map((m) => m.id);
   const activeScreen = visibleScreens.includes(screen) ? screen : (visibleScreens[0] ?? "pos");
@@ -297,20 +299,26 @@ function AppShell() {
 
   if (stores.length === 0) {
     return (
-      <main className="auth-page">
-        <section className="auth-card onboarding-card">
-          <ShieldCheck size={30} />
-          <h1>Chưa được cấp quyền cửa hàng</h1>
-          <p>
-            Đăng ký hoặc đăng nhập trước, sau đó nhờ chủ cửa hàng thêm email hoặc số điện thoại của bạn vào cửa hàng.
-          </p>
-          {accessError && <div className="error-banner" role="alert">{accessError}</div>}
-          <button className="button button-secondary" onClick={() => void refreshAccess(user.id)}>
-            <RefreshCw size={16} /> Kiểm tra lại
-          </button>
-          <button className="text-button" onClick={() => void signOut()}>
-            <LogOut size={15} /> Đăng xuất
-          </button>
+      <main className="no-access-shell">
+        <section className="main-area no-store-main">
+          {activeScreen === "profile" ? (
+            <ProfilePage
+              user={user}
+              authBusy={authBusy}
+              authError={authError}
+              accessError={accessError}
+              hasStoreAccess={false}
+              onUpdateProfile={updateProfile}
+              onRefreshAccess={() => void refreshAccess(user.id)}
+              onSignOut={() => void signOut()}
+              onOpenShop={() => setScreen("shop")}
+            />
+          ) : (
+            <StorefrontPage
+              accountName={user.fullName || user.email || user.phone}
+              onOpenProfile={() => setScreen("profile")}
+            />
+          )}
         </section>
       </main>
     );
@@ -318,7 +326,7 @@ function AppShell() {
 
   // ── Main shell ────────────────────────────────────────────────
   return (
-    <main className="app-shell">
+    <main className={`app-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       <Sidebar
         currentRole={currentRole}
         permissions={currentPermissions}
@@ -329,6 +337,9 @@ function AppShell() {
         activeStore={activeStore}
         warehouses={warehouses}
         selectedWarehouseId={selectedWarehouseId}
+        hasStoreAccess
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={() => setSidebarCollapsed((collapsed) => !collapsed)}
       />
 
       <section className="main-area">
@@ -368,7 +379,7 @@ function AppShell() {
             <p>{notice.text}</p>
           </div>
         )}
-        {warehouses.length === 0 && (
+        {warehouses.length === 0 && activeScreen !== "shop" && (
           <div className="error-banner" role="status">
             <Warehouse size={19} />
             <div>
@@ -379,6 +390,20 @@ function AppShell() {
         )}
 
         {/* Screen routing */}
+        {activeScreen === "shop" && <StorefrontPage />}
+        {activeScreen === "profile" && (
+          <ProfilePage
+            user={user}
+            authBusy={authBusy}
+            authError={authError}
+            accessError={accessError}
+            hasStoreAccess
+            onUpdateProfile={updateProfile}
+            onRefreshAccess={() => void refreshAccess(user.id)}
+            onSignOut={() => void signOut()}
+            onOpenShop={() => setScreen("shop")}
+          />
+        )}
         {activeScreen === "pos" && (
           <PosView
             catalog={catalog}

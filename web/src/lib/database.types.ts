@@ -73,6 +73,7 @@ export type Database = {
         warehouse_id: string;
         customer_id: string | null;
         created_by: string | null;
+        sales_channel: string;
         status: string;
         currency: string;
         subtotal: number;

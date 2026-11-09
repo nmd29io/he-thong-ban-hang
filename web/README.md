@@ -168,6 +168,20 @@ Khi merge vào `main`, tích hợp sẽ áp dụng migrations và deploy Edge Fu
 
 Nên bật required status check của Supabase Integration cho pull request để chặn merge khi migration validation thất bại. Build/lint/SQL checks của GitHub Actions vẫn chạy độc lập. Cấu hình provider Google OAuth và SMS vẫn thực hiện riêng trong Supabase Auth một lần.
 
+### Cấu hình đăng nhập Google
+
+Với project Cloud `he-thong-ban-hang-dev` (`webmljaiocjshyjxdfnw`):
+
+1. Trong [Google Auth Platform](https://console.cloud.google.com/auth/clients), tạo OAuth Client ID loại **Web application**. Thêm `http://localhost:5173` vào **Authorized JavaScript origins** khi phát triển và `https://he-thong-ban-hang-mu.vercel.app` cho production hiện tại.
+2. Thêm `https://webmljaiocjshyjxdfnw.supabase.co/auth/v1/callback` vào **Authorized redirect URIs** của Google.
+3. Trong Supabase Dashboard → **Authentication → Sign In / Providers → Google**, bật Google và nhập Client ID cùng Client Secret. Không lưu Client Secret trong repository, file `VITE_*` hoặc gửi qua chat.
+4. Trong Supabase Dashboard → **Authentication → URL Configuration**, đặt **Site URL** là URL production và thêm `http://localhost:5173/**` cùng `http://127.0.0.1:5173/**` vào **Redirect URLs**. URL production hiện tại là `https://he-thong-ban-hang-mu.vercel.app/`.
+5. Nếu Google Auth Platform đang ở trạng thái **Testing**, chỉ các email trong **Audience → Test users** đăng nhập được. Thêm email cần thử tại đó; để cho phép mọi người dùng ngoài danh sách, cần hoàn thiện thông tin consent screen và chuyển ứng dụng sang trạng thái phù hợp trước khi triển khai.
+
+`supabase/config.toml` chỉ cho phép cả hai địa chỉ localhost trong môi trường Supabase local; thay đổi này không cập nhật cấu hình Auth của project Cloud. Lần đầu người dùng chọn **Đăng nhập / đăng ký với Google**, Supabase tự tạo tài khoản Auth mới khi Google xác thực thành công; các lần sau đăng nhập vào tài khoản đó. Ở trạng thái **Testing**, email đó phải nằm trong **Test users**. Để vào cửa hàng, chủ cửa hàng vẫn cần cấp membership cho email Google đã xác thực.
+
+Tài khoản đã đăng nhập nhưng chưa có membership cửa hàng mặc định vào Shop; sidebar cho phép chuyển giữa Shop và hồ sơ cá nhân. Hồ sơ có các mục tổng quan, đơn mua, thông tin cá nhân và cài đặt tài khoản. Đơn đặt qua Shop khi đã đăng nhập được liên kết với tài khoản và hiển thị trong lịch sử mua; đơn đặt trước khi có liên kết không tự động gán theo số điện thoại để tránh liên kết nhầm tài khoản. Người dùng có thể cập nhật tên hiển thị và kiểm tra lại quyền truy cập; email/số điện thoại đăng nhập chỉ hiển thị, không đổi tại đây. Mọi dữ liệu cửa hàng tiếp tục bị khóa cho tới khi được cấp membership. Với tài khoản đã có quyền, mục Shop và Hồ sơ cá nhân luôn có trong sidebar bên cạnh các màn hình được cấp quyền.
+
 Trong `web/.env.local`, đặt `VITE_SUPABASE_URL` là Project URL và `VITE_SUPABASE_PUBLISHABLE_KEY` là publishable key của cùng project Cloud. Không dùng secret/service-role key ở frontend. Khởi động lại Vite sau khi đổi biến môi trường:
 
 ```powershell

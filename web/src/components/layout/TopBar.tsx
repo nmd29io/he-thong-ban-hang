@@ -10,6 +10,8 @@ const screenTitles: Record<Screen, string> = {
   customers: "Khách hàng",
   reports: "Báo cáo",
   access: "Phân quyền",
+  shop: "Shop",
+  profile: "Hồ sơ cá nhân",
 };
 
 type TopBarProps = {

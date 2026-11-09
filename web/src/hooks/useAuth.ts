@@ -2,7 +2,29 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { errorText } from "../lib/utils";
 
-export type AuthUser = { id: string; email: string; phone: string };
+export type AuthUser = {
+  id: string;
+  email: string;
+  phone: string;
+  fullName: string;
+};
+
+function toAuthUser(user: {
+  id: string;
+  email?: string;
+  phone?: string;
+  user_metadata?: Record<string, unknown>;
+}): AuthUser {
+  const fullName = user.user_metadata?.full_name ??
+    user.user_metadata?.name ??
+    user.user_metadata?.display_name;
+  return {
+    id: user.id,
+    email: user.email ?? "",
+    phone: user.phone ?? "",
+    fullName: typeof fullName === "string" ? fullName : "",
+  };
+}
 
 export function useAuth() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -24,15 +46,7 @@ export function useAuth() {
         setPasswordRecovery(false);
         setPasswordRecoveryComplete(false);
       }
-      setUser(
-        session?.user
-          ? {
-            id: session.user.id,
-            email: session.user.email ?? "",
-            phone: session.user.phone ?? "",
-          }
-          : null,
-      );
+      setUser(session?.user ? toAuthUser(session.user) : null);
       setAuthError("");
     });
 
@@ -41,15 +55,7 @@ export function useAuth() {
       .then(({ data, error: sessionError }) => {
         if (!alive) return;
         if (sessionError) setAuthError(sessionError.message);
-        setUser(
-          data.session?.user
-            ? {
-              id: data.session.user.id,
-              email: data.session.user.email ?? "",
-              phone: data.session.user.phone ?? "",
-            }
-            : null,
-        );
+        setUser(data.session?.user ? toAuthUser(data.session.user) : null);
         setAuthReady(true);
       })
       .catch((sessionError: unknown) => {
@@ -129,6 +135,30 @@ export function useAuth() {
       return true;
     } catch (updateError) {
       setAuthError(errorText(updateError, "Không cập nhật được mật khẩu."));
+      return false;
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function updateProfile(fullName: string) {
+    const trimmedName = fullName.trim();
+    if (!trimmedName) {
+      setAuthError("Tên hiển thị không được để trống.");
+      return false;
+    }
+
+    setAuthBusy(true);
+    setAuthError("");
+    try {
+      const { data, error: updateError } = await supabase.auth.updateUser({
+        data: { full_name: trimmedName },
+      });
+      if (updateError) throw updateError;
+      setUser(toAuthUser(data.user));
+      return true;
+    } catch (updateError) {
+      setAuthError(errorText(updateError, "Không cập nhật được hồ sơ."));
       return false;
     } finally {
       setAuthBusy(false);
@@ -245,6 +275,7 @@ export function useAuth() {
     signInWithEmail,
     sendPasswordResetEmail,
     updatePassword,
+    updateProfile,
     finishPasswordRecovery,
     cancelPasswordRecovery,
     signUpWithPhone,

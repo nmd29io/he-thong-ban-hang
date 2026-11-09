@@ -185,8 +185,19 @@ export default {
       });
     }
 
+    const authorization = req.headers.get("Authorization");
+    const accessToken = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+    if (!accessToken) {
+      return jsonResponse({ error: "Vui lòng đăng nhập để đặt hàng." }, 401);
+    }
+    const { data: userData, error: userError } = await ctx.supabaseAdmin.auth.getUser(accessToken);
+    if (userError || !userData.user) {
+      return jsonResponse({ error: "Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại." }, 401);
+    }
+    const userId = userData.user.id;
+
     const { data: orderId, error: orderError } = await ctx.supabaseAdmin.rpc(
-      "create_storefront_order",
+      "create_storefront_order_for_user",
       {
         p_store_id: body.store_id,
         p_warehouse_id: body.warehouse_id,
@@ -195,6 +206,7 @@ export default {
         p_customer_phone: body.customer_phone,
         p_shipping_address: body.shipping_address,
         p_idempotency_key: body.idempotency_key,
+        p_user_id: userId,
       },
     );
     if (orderError) {

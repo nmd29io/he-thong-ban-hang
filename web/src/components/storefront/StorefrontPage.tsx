@@ -3,6 +3,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
   CheckCircle2,
+  CircleUserRound,
+  LogIn,
   LoaderCircle,
   Minus,
   Package,
@@ -14,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { invokeEdgeFunction } from "../../lib/edge-functions";
+import { supabase } from "../../lib/supabase";
 import { formatMoney } from "../../lib/utils";
 import type { CatalogItem } from "../../lib/types";
 
@@ -78,8 +81,14 @@ function productIdFromPathname(pathname: string): string | null {
   }
 }
 
-export function StorefrontPage() {
+type StorefrontPageProps = {
+  accountName?: string;
+  onOpenProfile?: () => void;
+};
+
+export function StorefrontPage({ accountName, onOpenProfile }: StorefrontPageProps = {}) {
   const queryClient = useQueryClient();
+  const [isAuthenticated, setIsAuthenticated] = useState(Boolean(accountName || onOpenProfile));
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
   const [activeBrand, setActiveBrand] = useState("all");
@@ -97,6 +106,30 @@ export function StorefrontPage() {
   const [checkoutError, setCheckoutError] = useState("");
   const [orderNumber, setOrderNumber] = useState("");
   const idempotencyRef = useRef<{ signature: string; key: string } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(Boolean(session));
+    });
+
+    void supabase.auth.getSession().then(({ data, error: sessionError }) => {
+      if (!active) return;
+      if (sessionError) {
+        console.error("Could not check storefront auth session:", sessionError.message);
+        setIsAuthenticated(false);
+        return;
+      }
+      setIsAuthenticated(Boolean(data.session));
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     if (!isCartOpen) return;
@@ -355,6 +388,23 @@ export function StorefrontPage() {
           <ShoppingCart size={19} /><span>Giỏ hàng</span>
           {cartQuantity > 0 && <b>{cartQuantity}</b>}
         </button>
+        {onOpenProfile && (
+          <button
+            className="storefront-account-link"
+            type="button"
+            onClick={onOpenProfile}
+            aria-label={`Hồ sơ tài khoản ${accountName ?? ""}`.trim()}
+          >
+            <CircleUserRound size={18} />
+            <span>{accountName || "Tài khoản"}</span>
+          </button>
+        )}
+        {!onOpenProfile && !isAuthenticated && (
+          <a className="storefront-account-link" href="/" aria-label="Đăng nhập">
+            <LogIn size={18} />
+            <span>Đăng nhập</span>
+          </a>
+        )}
       </header>
 
       {selectedProductId ? (

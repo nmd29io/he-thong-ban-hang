@@ -10,7 +10,7 @@ export type Payment = Tables["payments"]["Row"];
 export type LedgerEntry = Tables["inventory_ledger"]["Row"];
 export type Role = "owner" | "manager" | "cashier" | "stock_clerk" | "accountant";
 export type { Permission } from "./permissions";
-export type Screen = "pos" | "orders" | "products" | "inventory" | "customers" | "reports" | "access";
+export type Screen = "pos" | "orders" | "products" | "inventory" | "customers" | "reports" | "access" | "shop" | "profile";
 export type StoreOption = Pick<Tables["stores"]["Row"], "id" | "code" | "name">;
 export type WarehouseOption = Pick<Tables["warehouses"]["Row"], "id" | "name">;
 export type Membership = Pick<Tables["store_memberships"]["Row"], "store_id" | "user_id" | "role" | "permissions" | "is_active" | "created_at">;

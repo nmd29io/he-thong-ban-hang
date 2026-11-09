@@ -92,7 +92,7 @@ export function useStoreData(
         canReadOrders ? supabase
           .from("sales_orders")
           .select(
-            "id,order_number,store_id,warehouse_id,customer_id,created_by,status,currency,subtotal,discount_amount,tax_amount,total_amount,created_at,updated_at",
+            "id,order_number,store_id,warehouse_id,customer_id,created_by,sales_channel,status,currency,subtotal,discount_amount,tax_amount,total_amount,created_at,updated_at",
           )
           .eq("store_id", selectedStoreId)
           .order("created_at", { ascending: false })
