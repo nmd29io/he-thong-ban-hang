@@ -1,6 +1,6 @@
 begin;
 
-select plan(29);
+select plan(36);
 
 insert into auth.users (
     id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -121,7 +121,9 @@ create temporary table test_ids (
     inventory_entry_id uuid,
     order_id uuid,
     payment_id uuid,
-    second_order_id uuid
+    second_order_id uuid,
+    storefront_order_id uuid,
+    second_storefront_order_id uuid
 );
 insert into test_ids default values;
 
@@ -394,14 +396,100 @@ select is(
     'cancelled order status is persisted'
 );
 
+set local request.jwt.claim.role = 'service_role';
+
+update test_ids
+   set storefront_order_id = public.create_storefront_order_for_user(
+       '91000000-0000-0000-0000-000000000001',
+       '92000000-0000-0000-0000-000000000001',
+       jsonb_build_array(jsonb_build_object(
+           'variant_id', (select id from public.product_variants where sku = 'MVP-TEST-SKU'),
+           'quantity', 2
+       )),
+       'Shop customer',
+       '+84900000003',
+       'Test shipping address',
+       '94000000-0000-0000-0000-000000000004',
+       '90000000-0000-0000-0000-000000000002'
+   );
+
+select is(
+    (select status from public.sales_orders where id = (select storefront_order_id from test_ids)),
+    'pending_confirmation',
+    'online storefront orders wait for store confirmation'
+);
+
+select is(
+    (select sales_channel from public.sales_orders where id = (select storefront_order_id from test_ids)),
+    'shop',
+    'online orders are linked to the shop channel'
+);
+
+select is(
+    (select reserved from public.inventory_balances
+      where warehouse_id = '92000000-0000-0000-0000-000000000001'
+        and variant_id = (select id from public.product_variants where sku = 'MVP-TEST-SKU')),
+    2::bigint,
+    'pending online orders keep stock reserved'
+);
+
+select is(
+    public.confirm_storefront_order(
+        '91000000-0000-0000-0000-000000000001',
+        (select storefront_order_id from test_ids),
+        '90000000-0000-0000-0000-000000000001'
+    ),
+    (select storefront_order_id from test_ids),
+    'the store can confirm a pending online order'
+);
+
+select is(
+    (select status from public.sales_orders where id = (select storefront_order_id from test_ids)),
+    'confirmed',
+    'confirmation changes the order status'
+);
+
+update test_ids
+   set second_storefront_order_id = public.create_storefront_order_for_user(
+       '91000000-0000-0000-0000-000000000001',
+       '92000000-0000-0000-0000-000000000001',
+       jsonb_build_array(jsonb_build_object(
+           'variant_id', (select id from public.product_variants where sku = 'MVP-TEST-SKU'),
+           'quantity', 1
+       )),
+       'Another shop customer',
+       '+84900000004',
+       'Another test address',
+       '94000000-0000-0000-0000-000000000005',
+       '90000000-0000-0000-0000-000000000002'
+   );
+
+select is(
+    public.cancel_sales_order(
+        '91000000-0000-0000-0000-000000000001',
+        (select second_storefront_order_id from test_ids),
+        '90000000-0000-0000-0000-000000000001'
+    ),
+    (select second_storefront_order_id from test_ids),
+    'the store can cancel a pending online order'
+);
+
+select is(
+    (select reserved from public.inventory_balances
+      where warehouse_id = '92000000-0000-0000-0000-000000000001'
+        and variant_id = (select id from public.product_variants where sku = 'MVP-TEST-SKU')),
+    2::bigint,
+    'cancelling a pending online order releases only its reservation'
+);
+
 select is(
     (select sales_total from public.get_store_report(
         '91000000-0000-0000-0000-000000000001',
         now() - interval '1 day',
         now() + interval '1 day'
     )),
-    2000::numeric,
-    'report excludes cancelled sales'
+    4000::numeric,
+    'report includes confirmed online sales and excludes cancelled sales'
 );
 
 select is(
@@ -420,8 +508,8 @@ select is(
         now() - interval '1 day',
         now() + interval '1 day'
     )),
-    1000::numeric,
-    'report calculates the remaining balance'
+    3000::numeric,
+    'report calculates the remaining balance for confirmed orders'
 );
 
 select * from finish();

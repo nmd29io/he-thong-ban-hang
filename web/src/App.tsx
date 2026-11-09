@@ -454,6 +454,7 @@ function AppShell() {
             paymentMethod={orderHook.paymentMethod}
             setPaymentMethod={orderHook.setPaymentMethod}
             handleRecordPayment={(e) => void orderHook.handleRecordPayment(e)}
+            confirmOrder={(o) => void orderHook.confirmOrder(o)}
             completeOrder={(o) => void orderHook.completeOrder(o)}
             cancelOrder={(o) => void orderHook.cancelOrder(o)}
             setError={setError}

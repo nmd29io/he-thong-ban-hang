@@ -334,6 +334,7 @@ export function StorefrontPage({ accountName, onOpenProfile }: StorefrontPagePro
       }
       setOrderNumber(result.order_number.trim());
       void queryClient.invalidateQueries({ queryKey: ["storefront-catalog"] });
+      void queryClient.invalidateQueries({ queryKey: ["profile-shop-orders"] });
       setCart([]);
       setCustomerName("");
       setCustomerPhone("");
@@ -355,7 +356,7 @@ export function StorefrontPage({ accountName, onOpenProfile }: StorefrontPagePro
           <div className="storefront-success-icon"><CheckCircle2 size={35} /></div>
           <p className="storefront-eyebrow">ĐẶT HÀNG THÀNH CÔNG</p>
           <h1>Cảm ơn bạn đã mua hàng!</h1>
-          <p>Đơn hàng <strong>{orderNumber}</strong> đã được ghi nhận. Cửa hàng sẽ liên hệ để xác nhận giao hàng.</p>
+          <p>Đơn hàng <strong>{orderNumber}</strong> đang chờ cửa hàng xác nhận. Bạn có thể theo dõi trạng thái trong mục Đơn mua.</p>
           <button className="storefront-button storefront-button-primary" onClick={() => setOrderNumber("")}>
             Tiếp tục mua sắm <ArrowRight size={17} />
           </button>

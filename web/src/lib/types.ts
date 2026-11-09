@@ -62,6 +62,7 @@ export type BulkReceiptResponse = {
 
 export const orderStatusNames: Record<string, string> = {
   draft: "Nháp",
+  pending_confirmation: "Chờ xác nhận",
   confirmed: "Đã xác nhận",
   fulfilled: "Hoàn tất",
   cancelled: "Đã hủy",

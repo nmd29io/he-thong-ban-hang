@@ -61,6 +61,22 @@ export function useOrder(
     }
   }
 
+  async function confirmOrder(order: Order) {
+    if (!window.confirm(`Xác nhận đơn online ${order.order_number}?`)) return;
+    setError("");
+    try {
+      await invokeEdgeFunction<{ result: unknown }>("manage-operations", {
+        action: "confirm_order",
+        store_id: selectedStoreId,
+        order_id: order.id,
+      });
+      setNotice({ kind: "success", text: `Đã xác nhận đơn ${order.order_number}.` });
+      onSuccess();
+    } catch (operationError) {
+      setError(errorText(operationError, "Không xác nhận được đơn hàng."));
+    }
+  }
+
   async function cancelOrder(order: Order) {
     if (!window.confirm(`Hủy đơn ${order.order_number} và nhả hàng đã giữ?`)) return;
     setError("");
@@ -86,6 +102,7 @@ export function useOrder(
     setPaymentMethod,
     handleRecordPayment,
     completeOrder,
+    confirmOrder,
     cancelOrder,
     canSell,
   };

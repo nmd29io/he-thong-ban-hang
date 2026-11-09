@@ -21,6 +21,7 @@ type OrdersViewProps = {
   setPaymentMethod: (v: string) => void;
   handleRecordPayment: (event: React.FormEvent<HTMLFormElement>) => void;
   completeOrder: (order: Order) => void;
+  confirmOrder: (order: Order) => void;
   cancelOrder: (order: Order) => void;
   setError: (error: string) => void;
 };
@@ -41,6 +42,7 @@ export function OrdersView({
   setPaymentMethod,
   handleRecordPayment,
   completeOrder,
+  confirmOrder,
   cancelOrder,
   setError,
 }: OrdersViewProps) {
@@ -71,6 +73,12 @@ export function OrdersView({
                   <td>{formatDate(order.created_at)}</td>
                   <td className="table-actions">
                     <div className="table-action-buttons">
+                      {order.status === "pending_confirmation" && canManageOrders && (
+                        <>
+                          <button className="text-button" onClick={() => confirmOrder(order)}>Xác nhận</button>
+                          <button className="text-button danger-text" onClick={() => cancelOrder(order)}>Hủy</button>
+                        </>
+                      )}
                       {order.status === "confirmed" && (canManageOrders || canManagePayments) && (
                         <>
                           {canManagePayments && <button className="text-button" onClick={() => { setPaymentOrderId(order.id); setPaymentAmount(""); setError(""); }}>Thu tiền</button>}

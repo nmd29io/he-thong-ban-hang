@@ -59,13 +59,16 @@ export function CustomersView({
                 const customerOrders = orders.filter(
                   (order) => order.customer_id === customer.id && order.status !== "cancelled",
                 );
+                const customerSales = customerOrders.filter(
+                  (order) => order.status === "confirmed" || order.status === "fulfilled",
+                );
                 return (
                   <tr key={customer.id}>
                     <td>{customer.name}</td>
                     <td>{customer.phone ?? "—"}</td>
                     <td>{customer.shipping_address ?? "—"}</td>
                     <td>{canReadOrders ? customerOrders.length : "—"}</td>
-                    <td>{canReadOrders ? formatMoney(customerOrders.reduce((sum, order) => sum + Number(order.total_amount), 0)) : "—"}</td>
+                    <td>{canReadOrders ? formatMoney(customerSales.reduce((sum, order) => sum + Number(order.total_amount), 0)) : "—"}</td>
                   </tr>
                 );
               })}

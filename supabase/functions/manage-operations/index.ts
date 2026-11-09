@@ -4,6 +4,7 @@ type Action =
   | "inventory_movement"
   | "inventory_movement_batch"
   | "record_payment"
+  | "confirm_order"
   | "complete_order"
   | "cancel_order";
 
@@ -95,6 +96,7 @@ export default {
       (action !== "inventory_movement" &&
         action !== "inventory_movement_batch" &&
         action !== "record_payment" &&
+        action !== "confirm_order" &&
         action !== "complete_order" &&
         action !== "cancel_order") ||
       !isUuid(store_id)
@@ -261,6 +263,12 @@ export default {
         p_payment_method: payment_method,
         p_actor_id: userId,
         p_idempotency_key: idempotency_key,
+      });
+    } else if (action === "confirm_order") {
+      result = await ctx.supabaseAdmin.rpc("confirm_storefront_order", {
+        p_store_id: store_id,
+        p_order_id: order_id,
+        p_actor_id: userId,
       });
     } else if (action === "complete_order") {
       result = await ctx.supabaseAdmin.rpc("complete_sales_order", {
